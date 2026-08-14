@@ -1,0 +1,424 @@
+{
+  "players": [
+    {
+      "id": "3X4ifoXBnfHPkV6NfxUW",
+      "timestamp": "2026-08-07T14:55:07.512Z",
+      "number": "0",
+      "position": "Medio",
+      "amount_paid": 0,
+      "name": "Rafael Valencia",
+      "variant": "",
+      "imageUrl": "https://scontent-phx1-1.xx.fbcdn.net/v/t39.30808-6/652985066_27262987963288712_7191804785892124007_n.jpg?stp=dst-jpg_tt6&cstp=mx1279x1279&ctp=s1279x1279&_nc_cat=101&ccb=1-7&_nc_sid=a5f93a&_nc_ohc=l-0YZOHNoLoQ7kNvwHWCGeT&_nc_oc=AdpaKPHskD2h4cS7my_Dg7Yz2f8-3aVm5HQBUcOzDnMTMgjlTG57fy-l1H72ZJOQMo2W7Vs9HRpu8eDascwxuD5J&_nc_zt=23&_nc_ht=scontent-phx1-1.xx&_nc_gid=ajcE7OP9sZADV500oqOtHA&_nc_ss=7b2a8&oh=00_AQGd-wMRU_aTkvA9bXhBu9g10ceECEO3KZietzW8MmN0bg&oe=6A7C0190"
+    },
+    {
+      "id": "72mKgdZUXc2Hdq3O7XQP",
+      "position": "Defensa",
+      "birthDate": "1996-02-04",
+      "name": "Alfredo Velázquez",
+      "variant": "Central",
+      "imageUrl": "https://i.pinimg.com/736x/08/37/85/083785e52b4bcc878063b6c47739c1bf.jpg",
+      "timestamp": "2026-08-07T14:54:39.548Z",
+      "number": "11",
+      "amount_paid": 0
+    },
+    {
+      "id": "9xtRsQPrvSqH5QHLt3kO",
+      "birthDate": "2001-10-23",
+      "variant": "",
+      "imageUrl": "https://i.pinimg.com/736x/29/3e/f8/293ef8374495ec466508f6122d74eacd.jpg",
+      "amount_paid": 0,
+      "name": "Jovanny Martínez",
+      "position": "Defensa",
+      "number": "4",
+      "timestamp": "2026-08-07T14:54:46.568Z"
+    },
+    {
+      "id": "B27gEzB05pM5TLut05L6",
+      "number": "0",
+      "position": "Delantero",
+      "timestamp": "2026-08-07T14:54:25.346Z",
+      "name": "Christian Santiago",
+      "variant": "",
+      "amount_paid": 0,
+      "imageUrl": "https://scontent-phx1-1.xx.fbcdn.net/v/t39.30808-6/689006157_2035047984563366_3630225206427980427_n.jpg?stp=dst-jpg_tt6&cstp=mx640x649&ctp=s640x649&_nc_cat=104&ccb=1-7&_nc_sid=6ee11a&_nc_ohc=lel3p5fudM8Q7kNvwGeZgM9&_nc_oc=Adp-o-TN2U4a08uRDwxfL3QBdnUMBOkqx1VKGAQEmCU3z9SfG6wd3e6QxS9PkaKv7mUGX6p635N3Bt7JqSoqkQcY&_nc_zt=23&_nc_ht=scontent-phx1-1.xx&_nc_gid=ydn0gonlG-5Z5VAy2l0LdA&_nc_ss=7b2a8&oh=00_AQGZ8uPDmP8rFxz3_yF05JJI06n3rWPSbF6zZZMOoJS5fQ&oe=6A7C2D3A"
+    },
+    {
+      "id": "IbBgZfyRt1qNPcuzyGwv",
+      "imageUrl": "https://scontent-phx1-1.xx.fbcdn.net/v/t39.30808-1/618061431_875766695239147_163496832828315387_n.jpg?stp=dst-jpg_tt6&cstp=mx814x810&ctp=s200x200&_nc_cat=107&ccb=1-7&_nc_sid=e99d92&_nc_ohc=ZHzdQ9clGWwQ7kNvwEhT8zQ&_nc_oc=Ado39zTJg-3zGE_XR3jO1hKWHF-94qJHQFKKwuKnnD3G9pbyPxe1Hg8jlVJEXXDWWOn1in6mu7v0Gy-5vdAm8I1d&_nc_zt=24&_nc_ht=scontent-phx1-1.xx&_nc_gid=FoeqBmbl5wv7otVHqR6uhQ&_nc_ss=7b2a8&oh=00_AQEFp0RXoLxwydFK5gESWtJMQh8-iTh2nSxm5rqndivaVw&oe=6A7C1BB8",
+      "timestamp": "2026-08-07T14:54:13.002Z",
+      "number": "10",
+      "name": "Cesar Carballo",
+      "amount_paid": 200,
+      "birthDate": "1991-08-10",
+      "variant": "LI",
+      "position": "Delantero"
+    },
+    {
+      "id": "ONzbvqFkVf9be2xUmmb4",
+      "timestamp": "2026-08-07T14:53:30.159Z",
+      "position": "Medio",
+      "name": "Uziel Conckle",
+      "amount_paid": 200,
+      "number": "8",
+      "variant": "",
+      "imageUrl": "https://i.pinimg.com/736x/03/a1/3d/03a13d69dcb2ecc925faae7463f4c140.jpg",
+      "birthDate": "2000-11-08"
+    },
+    {
+      "id": "OiEyvydC0a2E4lB7FjzS",
+      "number": "6",
+      "name": "Victor Torres",
+      "position": "Medio",
+      "timestamp": "2026-08-07T14:54:29.924Z",
+      "amount_paid": 0,
+      "imageUrl": ""
+    },
+    {
+      "id": "aQuZ3bgQCc6KcuDZSAwa",
+      "amount_paid": 200,
+      "timestamp": "2026-08-07T14:53:41.964Z",
+      "imageUrl": "https://i.pinimg.com/736x/3d/86/4b/3d864b303adbd54e77882d44ce07a37a.jpg",
+      "birthDate": "1997-06-14",
+      "variant": "",
+      "position": "Medio",
+      "number": "2",
+      "name": "Carlos Carballo"
+    },
+    {
+      "id": "buo3wNtYyyk8QY3dxSZI",
+      "position": "Defensa",
+      "amount_paid": 0,
+      "birthDate": "1999-09-15",
+      "variant": "",
+      "timestamp": "2026-08-07T14:54:59.772Z",
+      "number": "5",
+      "name": "Jesús Jacinto",
+      "imageUrl": "https://i.pinimg.com/736x/0a/4a/c9/0a4ac942041aa4a1c32e9fdd67a9fc12.jpg"
+    },
+    {
+      "id": "byvBNKwb7aTNPY57hDpv",
+      "position": "Delantero",
+      "variant": "",
+      "birthDate": "1990-08-10",
+      "name": "Ramon Duarte",
+      "amount_paid": 200,
+      "timestamp": "2026-08-07T14:54:05.960Z",
+      "imageUrl": "https://i.pinimg.com/736x/bf/63/44/bf63449217461e0d9590be6d9ee62bd0.jpg",
+      "number": "9"
+    },
+    {
+      "id": "qzzM6oc67iTE9mQ50dog",
+      "name": "Bruno Manríquez",
+      "amount_paid": 0,
+      "variant": "",
+      "number": "0",
+      "position": "Defensa",
+      "timestamp": "2026-08-07T15:30:10.839Z",
+      "imageUrl": ""
+    },
+    {
+      "id": "sWMw1J38I71omVWs1LUP",
+      "amount_paid": 0,
+      "imageUrl": "",
+      "number": "0",
+      "variant": "",
+      "name": "Germán Soto",
+      "position": "Delantero",
+      "timestamp": "2026-08-10T03:42:10.513Z"
+    },
+    {
+      "id": "tO9nHXRbEthtLjxwU4zc",
+      "imageUrl": "",
+      "amount_paid": 0,
+      "number": "0",
+      "variant": "",
+      "timestamp": "2026-08-10T01:33:32.461Z",
+      "position": "Delantero",
+      "name": "Rodolfo Vega"
+    },
+    {
+      "id": "zH6JWVGxry1zWvTZEpiU",
+      "timestamp": "2026-08-07T14:54:19.800Z",
+      "name": "Eddiel Santiago",
+      "position": "Portero",
+      "amount_paid": 0,
+      "number": "1",
+      "imageUrl": "https://i.pinimg.com/736x/01/c0/5d/01c05d806e3b1e7e3a14c2c36df7844d.jpg",
+      "variant": "",
+      "birthDate": "2007-09-13"
+    }
+  ],
+  "events": [
+    {
+      "id": "KaNnmBcWpNCErNzpcJSj",
+      "eventDate": "2026-08-09",
+      "eventType": "Entrenamiento",
+      "photoUrl": "https://i.pinimg.com/736x/ca/33/12/ca3312fbc9dfc4c7fc0d93f59ea24d07.jpg",
+      "location": "Óvalo",
+      "timestamp": "2026-08-07T17:38:44.649Z",
+      "eventTime": "18:00",
+      "title": "Práctica en campo sintético",
+      "attendees": [
+        "Carlos Carballo",
+        "Eddiel Santiago",
+        "Victor Torres",
+        "Jovanny Martínez",
+        "Ramon Duarte",
+        "Rodolfo Vega",
+        "Cesar Carballo"
+      ],
+      "routine": "Grupo 1: Calentamiento\n-Movilidad articular: 3 minutos (movimiento continuo, 3 min).\n-Jumping jacks: 2 series de 15 segundos (Descanso: 45 seg).\n-Skipping suave: 4 series de 15 segundos (Descanso: 45 seg).\n\nGrupo 2: Resistencia\n-Plancha: 2 series de 10 a 15 segundos (Descanso: 1.5 min).\n-Sentadillas: 2 series de 6 repeticiones (Descanso: 1 min).\n-Trote en la cancha: 5 minutos. Si hay fatiga, alternar 1 min de trote por 1 min de caminata (Descanso al terminar: 3 min para tomar agua).\n\nGrupo 3: Conducción y pases\n-Control en zig zag (6 conos): 3 de ida y vuelta (Descanso: el tiempo en la fila esperando el turno).\n-Cambio de ritmo a lo largo de 6 conos (Descanso: el tiempo en la fila esperando el turno).\n-Pases (cortos y largos): 5 minutos en parejas (Descanso: Pausar 1 min exactamente a la mitad del ejercicio).\n\nGrupo 4: Fútbol en espacios reducidos\n-Rondo (a 2 o 3 toques): 20 minutos en total.\n-Mini partidos (3vs3 o 4vs4): 20 minutos en total. Jugar 2 tiempos de 10 minutos (Descanso: 3 min al medio tiempo)."
+    },
+    {
+      "id": "WdP6CEJdlDqRPtIe0RBU",
+      "eventType": "Entrenamiento",
+      "timestamp": "2026-08-07T16:48:28.049Z",
+      "location": "Óvalo",
+      "photoUrl": "https://i.pinimg.com/736x/a6/a1/7c/a6a17c512e9aefd970698285c086fadd.jpg",
+      "title": "Entrenamiento",
+      "eventTime": "18:00",
+      "attendees": [
+        "Carlos Carballo",
+        "Jesús Jacinto",
+        "Cesar Carballo",
+        "Alfredo Velázquez",
+        "Rafael Valencia",
+        "Eddiel Santiago"
+      ],
+      "eventDate": "2026-08-02"
+    },
+    {
+      "id": "bpRQJoaFiHmKrLyPerNp",
+      "eventDate": "2026-08-06",
+      "attendees": [
+        "Carlos Carballo",
+        "Uziel Conckle",
+        "Ramon Duarte",
+        "Victor Torres",
+        "Bruno Manríquez",
+        "Cesar Carballo",
+        "Alfredo Velázquez",
+        "Eddiel Santiago"
+      ],
+      "eventTime": "18:00",
+      "timestamp": "2026-08-07T16:48:59.729Z",
+      "title": "Entrenamiento",
+      "photoUrl": "https://i.pinimg.com/1200x/ed/2b/35/ed2b351a707beaf5de2a61bc0ff6ef97.jpg",
+      "location": "Óvalo",
+      "eventType": "Entrenamiento"
+    },
+    {
+      "id": "i2zSbqowlzVQdYEsPcfN",
+      "attendees": [
+        "Carlos Carballo",
+        "Jovanny Martínez",
+        "Eddiel Santiago"
+      ],
+      "eventDate": "2026-08-11",
+      "title": "Práctica en campo sintético",
+      "eventTime": "18:00",
+      "routine": "",
+      "timestamp": "2026-08-10T04:48:58.387Z",
+      "location": "Óvalo",
+      "eventType": "Entrenamiento"
+    },
+    {
+      "id": "iua61TNedjyUccNet75I",
+      "routine": "",
+      "stats": [
+        {
+          "scorer": "Carlos Carballo",
+          "assist": "Cesar Carballo"
+        },
+        {
+          "scorer": "Ramon Duarte",
+          "assist": ""
+        },
+        {
+          "scorer": "Cesar Carballo",
+          "assist": ""
+        },
+        {
+          "assist": "Victor Torres",
+          "scorer": "Uziel Conckle"
+        },
+        {
+          "scorer": "Cesar Carballo",
+          "assist": ""
+        }
+      ],
+      "title": "vs Luciérnagas FC",
+      "timestamp": "2026-08-10T03:44:55.579Z",
+      "goalkeeper": "Eddiel Santiago",
+      "scoreTheirs": 2,
+      "scoreOurs": 5,
+      "eventTime": "20:00",
+      "redCards": [],
+      "yellowCards": [],
+      "mvp": "Cesar Carballo",
+      "photoUrl": "https://i.pinimg.com/736x/69/f0/d9/69f0d96bae4434bb6b6e1b35985eaf7b.jpg",
+      "location": "Campo de Basket",
+      "eventDate": "2026-08-09",
+      "eventType": "Partido",
+      "attendees": [
+        "Carlos Carballo",
+        "Cesar Carballo",
+        "Eddiel Santiago",
+        "Germán Soto",
+        "Ramon Duarte",
+        "Uziel Conckle",
+        "Victor Torres"
+      ]
+    },
+    {
+      "id": "rMVqPV1kpKN0xOBlx2uW",
+      "timestamp": "2026-08-10T17:03:46.016Z",
+      "lineup": {
+        "positions": {},
+        "formation": "2-3-1",
+        "mode": "Fut-7"
+      },
+      "eventType": "Partido",
+      "title": "VS Trabajadores FC",
+      "attendees": [],
+      "routine": "",
+      "location": "Orinco",
+      "eventTime": "18:00",
+      "eventDate": "2026-09-10"
+    },
+    {
+      "id": "xtdR7Zpu3EAVTCWP3RAs",
+      "title": "Práctica en campo sintético",
+      "routine": "",
+      "eventDate": "2026-08-16",
+      "attendees": [],
+      "eventTime": "18:00",
+      "location": "Óvalo",
+      "timestamp": "2026-08-10T21:12:27.300Z",
+      "eventType": "Entrenamiento"
+    },
+    {
+      "id": "ydqetVumKHp976WL0fnF",
+      "timestamp": "2026-08-10T21:12:02.525Z",
+      "eventType": "Entrenamiento",
+      "routine": "",
+      "location": "Óvalo",
+      "attendees": [],
+      "eventDate": "2026-08-13",
+      "title": "Práctica en campo sintético",
+      "eventTime": "18:00"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "Ca70knWxr9MSf9pwjA7K",
+      "date": "2026-07-25",
+      "category": "Equipo/Balones",
+      "timestamp": "2026-08-07T14:59:22.603Z",
+      "amount": 465,
+      "type": "gasto",
+      "description": "24 Conos altos, 20 Conos planos y 2 Escaleras de velocidad"
+    },
+    {
+      "id": "TzeRV8MoY3CoWI0Oce7q",
+      "amount": 980,
+      "category": "Equipo/Balones",
+      "date": "2026-07-25",
+      "type": "gasto",
+      "description": "12 Casacas de entrenamiento",
+      "timestamp": "2026-08-07T14:58:39.503Z"
+    }
+  ],
+  "inventory": [
+    {
+      "id": "3cdPDQ7R3SxzNGNw0iul",
+      "timestamp": "2026-08-08T20:08:01.016Z",
+      "condition": "Bueno",
+      "quantity": 1,
+      "name": "Bomba de aire"
+    },
+    {
+      "id": "GNi7Fw5WZwcQhNwcmPaS",
+      "name": "Conos altos",
+      "condition": "Bueno",
+      "timestamp": "2026-08-07T15:08:28.929Z",
+      "quantity": 24
+    },
+    {
+      "id": "dJdkBUbvBB183eh5W4y1",
+      "quantity": 2,
+      "name": "Escaleras de velocidad",
+      "condition": "Bueno",
+      "timestamp": "2026-08-07T15:08:51.580Z"
+    },
+    {
+      "id": "qDcC2eVhFVGt1YAHAYBg",
+      "condition": "Bueno",
+      "quantity": 20,
+      "timestamp": "2026-08-07T15:08:34.608Z",
+      "name": "Conos planos"
+    },
+    {
+      "id": "x5lgPXPmQ5l36rXGMx2F",
+      "condition": "Bueno",
+      "quantity": 12,
+      "timestamp": "2026-08-07T15:10:14.016Z",
+      "name": "Casacas"
+    }
+  ],
+  "gallery": [
+    {
+      "id": "64rXKEPNOUS5KoPyOvpU",
+      "timestamp": "2026-08-10T15:16:20.801Z",
+      "caption": "Entrenamiento de conducción",
+      "url": "https://i.pinimg.com/736x/02/67/79/0267799b62314a674b082cf98d56385b.jpg"
+    },
+    {
+      "id": "cjnP5OZaeydMZEL7ZHv1",
+      "url": "https://i.pinimg.com/736x/e1/50/79/e150799d34e9dd2bb00dc0cf46a12f1f.jpg",
+      "caption": "Post partido VS Lucíernagas FC",
+      "timestamp": "2026-08-10T15:19:27.427Z"
+    }
+  ],
+  "settings": {
+    "club_info": {
+      "heroImages": [
+        "https://i.pinimg.com/736x/ca/80/4a/ca804ab55579027f0ba7912d9f1fbaff.jpg"
+      ],
+      "heroImage": "https://i.pinimg.com/736x/8f/9f/d2/8f9fd2587e488825791f96b20717c7f0.jpg",
+      "name": "Joga Bonito FC",
+      "defaultLineups": {
+        "Fut-11": {
+          "formation": "4-3-3",
+          "positions": {
+            "fw1": "Cesar Carballo",
+            "df1": "Bruno Manríquez",
+            "df4": "Jovanny Martínez",
+            "fw3": "Ramon Duarte",
+            "df3": "Jesús Jacinto",
+            "md1": "Victor Torres",
+            "gk": "Eddiel Santiago",
+            "md2": "Rafael Valencia",
+            "md3": "Carlos Carballo",
+            "df2": "Alfredo Velázquez",
+            "fw2": "Germán Soto"
+          }
+        },
+        "Fut-7": {
+          "positions": {
+            "df3": "Jesús Jacinto",
+            "df2": "Victor Torres",
+            "md1": "Carlos Carballo",
+            "gk": "Eddiel Santiago",
+            "md3": "Ramon Duarte",
+            "md2": "Uziel Conckle",
+            "fw1": "Cesar Carballo",
+            "df1": "Jesús Jacinto"
+          },
+          "formation": "2-3-1"
+        }
+      },
+      "description": "Club Guaymense conformado por compañeros, amigos y familia. ⚽"
+    }
+  }
+}
