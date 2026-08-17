@@ -809,6 +809,7 @@ export default function App() {
             ref={sliderRef}
             style={{
               display: "flex",
+              alignItems: "flex-start",
               width: "100%",
               transition: "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
               transform: `translateX(-${activeIndex * 100}%)`,
@@ -822,10 +823,12 @@ export default function App() {
                   style={{
                     width: "100%",
                     flexShrink: 0,
-                    padding: "1.5rem",
                     boxSizing: "border-box",
                     visibility: isActive ? "visible" : "hidden",
                     pointerEvents: isActive ? "auto" : "none",
+                    height: isActive ? "auto" : "0px",
+                    padding: isActive ? "1.5rem" : "0",
+                    overflow: "hidden",
                   }}
                 >
                   {item.key === "inicio" && (
