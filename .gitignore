@@ -1,1 +1,10 @@
 node_modules
+*.md
+# Compilación de producción
+dist/
+dist-ssr/
+
+# Caché de Firebase
+.firebase/
+
+.agents/
