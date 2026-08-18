@@ -300,12 +300,12 @@ export default function App() {
             {/* --- IMAGEN DEL ESCUDO DINÁMICA --- */}
             <div
               style={{
-                width: "40px",
-                height: "40px",
+                width: "42px",
+                height: "42px",
                 borderRadius: "50%",
                 overflow: "hidden",
-                border: "2px solid rgba(255,255,255,0.15)",
-                backgroundColor: "rgba(255,255,255,0.1)",
+                backgroundColor: "#121212", // 👈 Cambiamos el fondo a Negro Carbón
+                border: `1.5px solid ${C.amber}`,
                 flexShrink: 0,
                 display: "flex",
                 alignItems: "center",
@@ -318,7 +318,12 @@ export default function App() {
                   "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg"
                 }
                 alt="Escudo del Club"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  transform: "scale(1.5)", // 👈 Aumentamos un poco más el zoom
+                }}
               />
             </div>
             {/* -------------------------- */}
