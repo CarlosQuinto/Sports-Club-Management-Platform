@@ -42,8 +42,9 @@ export function usePlayerStats(
           if (ev.eventType === "Partido") {
             if (attended) matchesAttended++;
 
-            // LÓGICA DEL DIRECTOR TÉCNICO
-            if (p.isDT) {
+            // ─── LÓGICA DEL DIRECTOR TÉCNICO ───
+            // Ahora validamos que el jugador actual sea el manager registrado en este partido
+            if (ev.manager === p.id || ev.manager === p.name) {
               matchesManaged++;
 
               // Determinamos los goles a favor
@@ -112,7 +113,7 @@ export function usePlayerStats(
         yellowCards,
         redCards,
         matchesManaged, // SE EXPORTA
-        winsManaged, // NUEVO: SE EXPORTA
+        winsManaged, // SE EXPORTA
         totalAttendance: matchesAttended + trainingsAttended,
       };
     });
