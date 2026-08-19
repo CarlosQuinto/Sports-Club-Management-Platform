@@ -100,6 +100,8 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
   const handleDelete = async (id: string) => {
     if (window.confirm("¿Seguro que deseas eliminar este evento?")) {
       await deleteDoc(doc(db, "events", id));
+      // 👇 Borramos también la transacción de arbitraje si existía
+      await deleteDoc(doc(db, "transactions", `arb_${id}`)).catch(() => {});
     }
   };
 
@@ -346,6 +348,7 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
         />
       )}
 
+      {/* ── MODAL: PAGOS DE ARBITRAJE ── */}
       {arbitrationModalEvent && (
         <ArbitrationModal
           ev={arbitrationModalEvent}
@@ -353,9 +356,54 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
           canEditArbitration={canEditArbitration}
           onClose={() => setArbitrationModalEvent(null)}
           onSave={async (cleanPayments: any[]) => {
+            // 🔍 INSPECCIÓN VISUAL EN CONSOLA
+            console.log("1. cleanPayments recibido del modal:", cleanPayments);
+
+            // 1. Guardamos los pagos en el evento (esto sí funciona)
             await updateDoc(doc(db, "events", arbitrationModalEvent.id), {
               arbitrationPayments: cleanPayments,
             });
+
+            // 2. Calculamos el total (probemos varias propiedades por si acaso)
+            const totalArbitraje = cleanPayments.reduce(
+              (sum, p) => sum + (Number(p.amount || p.monto || p.pagado) || 0),
+              0,
+            );
+            console.log("2. Total de arbitraje calculado:", totalArbitraje);
+
+            const transRef = doc(
+              db,
+              "transactions",
+              `arb_${arbitrationModalEvent.id}`,
+            );
+
+            if (totalArbitraje > 0) {
+              console.log(
+                "3. Intentando escribir en transactions con ID:",
+                `arb_${arbitrationModalEvent.id}`,
+              );
+              await setDoc(
+                transRef,
+                {
+                  type: "ingreso",
+                  category: "Cuotas",
+                  description: `Recaudación Arbitraje: ${arbitrationModalEvent.title}`,
+                  amount: totalArbitraje,
+                  date: arbitrationModalEvent.eventDate,
+                  timestamp: new Date().toISOString(),
+                },
+                { merge: true },
+              );
+              console.log(
+                "4. ¡Escritura en transactions completada con éxito!",
+              );
+            } else {
+              console.log(
+                "3. El total es 0 o menor, borrando transacción si existía...",
+              );
+              await deleteDoc(transRef).catch(() => {});
+            }
+
             setArbitrationModalEvent(null);
           }}
         />
