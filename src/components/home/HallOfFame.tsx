@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   Medal,
   Goal,
@@ -27,15 +27,12 @@ const calculateRanks = (list: any[], scoreKey: string) => {
   return list.map((item, index) => {
     const itemScore = item[scoreKey];
 
-    // Si es el primero, o su score es diferente al anterior, actualiza el rango
     if (index === 0) {
       currentScore = itemScore;
       itemsAtCurrentRank = 1;
     } else if (itemScore === currentScore) {
-      // Empate, mantienen el mismo rango, pero sumamos cuántos hay en este rango
       itemsAtCurrentRank++;
     } else {
-      // Nuevo score, el rango salta dependiendo de cuántos estaban empatados antes
       currentRank += itemsAtCurrentRank;
       currentScore = itemScore;
       itemsAtCurrentRank = 1;
@@ -51,38 +48,128 @@ export default function HallOfFame({
   topMVPs,
   topIronMen,
 }: HallOfFameProps) {
-  // ── Estado para el Carrusel ──
+  // ── Estado para el carrusel ──
   const [hofIndex, setHofIndex] = useState(0);
-  const nextHof = () => setHofIndex((prev) => (prev + 1) % 4);
-  const prevHof = () => setHofIndex((prev) => (prev - 1 + 4) % 4);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const hallRef = useRef<HTMLDivElement>(null);
 
-  // ── Estados para expandir cada lista independientemente ──
-  const [expScorers, setExpScorers] = useState(false);
-  const [expAssists, setExpAssists] = useState(false);
-  const [expMvps, setExpMvps] = useState(false);
-  const [expIronMen, setExpIronMen] = useState(false);
-
-  // Límite de jugadores a mostrar por defecto (EL TOP 5 SAGRADO)
+  // Límite de jugadores a mostrar por defecto (TOP 5)
   const LIMIT = 5;
 
   // ── Calcular Rankings con Empates ──
-  const rankedScorers = calculateRanks(topScorers, "goals");
-  const rankedAssists = calculateRanks(topAssists, "assists");
-  const rankedMVPs = calculateRanks(topMVPs, "mvps");
-  const rankedIronMen = calculateRanks(topIronMen, "totalAttendance");
+  const rankedScorers = useMemo(
+    () => calculateRanks(topScorers, "goals"),
+    [topScorers],
+  );
+  const rankedAssists = useMemo(
+    () => calculateRanks(topAssists, "assists"),
+    [topAssists],
+  );
+  const rankedMVPs = useMemo(() => calculateRanks(topMVPs, "mvps"), [topMVPs]);
+  const rankedIronMen = useMemo(
+    () => calculateRanks(topIronMen, "totalAttendance"),
+    [topIronMen],
+  );
 
-  // ── Botón Inteligente (Solo aparece si hay MÁS de 5 personas) ──
-  const renderSeeAllButton = (
-    isExpanded: boolean,
-    toggle: () => void,
-    totalItems: number,
-  ) => {
-    // Si hay 5 o menos, no mostramos el botón
+  // ── Construir y ordenar las categorías dinámicamente ──
+  const categories = useMemo(() => {
+    const allCategories = [
+      {
+        key: "scorers",
+        title: "El Pichichi",
+        subtitle: "Máximos Goleadores",
+        icon: <Goal size={18} />,
+        iconBg: "rgba(16, 185, 129, 0.1)",
+        iconColor: C.green,
+        accent: C.amber,
+        list: rankedScorers,
+        scoreText: (p: any) => `${p.goals} goles`,
+      },
+      {
+        key: "assists",
+        title: "El Maestro",
+        subtitle: "Más Asistencias",
+        icon: <TrendingUp size={18} />,
+        iconBg: "rgba(56, 189, 248, 0.1)",
+        iconColor: C.blueAccent,
+        accent: C.blueAccent,
+        list: rankedAssists,
+        scoreText: (p: any) => `${p.assists} asistencias`,
+      },
+      {
+        key: "mvps",
+        title: "El Galáctico",
+        subtitle: "Premios MVP",
+        icon: <Award size={18} />,
+        iconBg: "rgba(245, 158, 11, 0.1)",
+        iconColor: C.amber,
+        accent: C.amber,
+        list: rankedMVPs,
+        scoreText: (p: any) => `${p.mvps} MVPs`,
+      },
+      {
+        key: "ironmen",
+        title: "El de Hierro",
+        subtitle: "Más Presencias",
+        icon: <Shield size={18} />,
+        iconBg: "rgba(100, 116, 139, 0.1)",
+        iconColor: C.navy500,
+        accent: C.navy500,
+        list: rankedIronMen,
+        scoreText: (p: any) => `${p.totalAttendance} presencias`,
+      },
+    ];
+
+    return allCategories
+      .filter((cat) => cat.list.length > 0)
+      .sort((a, b) => b.list.length - a.list.length);
+  }, [rankedScorers, rankedAssists, rankedMVPs, rankedIronMen]);
+
+  // ── Scroll personalizado: más suave y con offset hacia arriba ──
+  const scrollToHall = () => {
+    if (!hallRef.current) return;
+    const OFFSET = 60; // píxeles adicionales para subir más arriba
+    const top =
+      hallRef.current.getBoundingClientRect().top + window.scrollY - OFFSET;
+    window.scrollTo({
+      top,
+      behavior: "smooth",
+    });
+  };
+
+  const nextHof = () => {
+    setExpanded({});
+    setHofIndex((prev) => (prev + 1) % categories.length);
+    scrollToHall();
+  };
+  const prevHof = () => {
+    setExpanded({});
+    setHofIndex((prev) => (prev - 1 + categories.length) % categories.length);
+    scrollToHall();
+  };
+  const goToSlide = (idx: number) => {
+    setExpanded({});
+    setHofIndex(idx);
+    scrollToHall();
+  };
+
+  const toggleExpand = (catKey: string) => {
+    setExpanded((prev) => {
+      const newExpanded = { ...prev, [catKey]: !prev[catKey] };
+      setTimeout(() => {
+        scrollToHall();
+      }, 100);
+      return newExpanded;
+    });
+  };
+
+  const renderSeeAllButton = (catKey: string, totalItems: number) => {
     if (totalItems <= LIMIT) return null;
+    const isExpanded = !!expanded[catKey];
 
     return (
       <button
-        onClick={toggle}
+        onClick={() => toggleExpand(catKey)}
         style={{
           width: "100%",
           padding: "0.75rem",
@@ -106,17 +193,15 @@ export default function HallOfFame({
           e.currentTarget.style.backgroundColor = C.gray50;
         }}
       >
-        {isExpanded ? "Ocultar tabla ↑" : `Ver más ↓`}
+        {isExpanded ? "Ocultar tabla ↑" : "Ver más ↓"}
       </button>
     );
   };
 
-  // Función auxiliar para determinar estilos según el RANGO (rank)
   const getRankStyles = (rank: number, accentColor: string) => {
     const isGold = rank === 1;
     const isSilver = rank === 2;
     const isBronze = rank === 3;
-    const isTop3 = isGold || isSilver || isBronze;
 
     const rankBg = isGold
       ? "#FEF08A"
@@ -152,12 +237,47 @@ export default function HallOfFame({
       avatarSize,
       nameSize,
       nameWeight,
-      isTop3,
     };
   };
 
+  if (categories.length === 0) {
+    return (
+      <div
+        style={{
+          backgroundColor: C.navy900,
+          borderRadius: RADIUS.lg,
+          padding: "1.5rem",
+          boxShadow: SHADOWS.lg,
+          color: C.white,
+          backgroundImage:
+            "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%)",
+          textAlign: "center",
+        }}
+      >
+        <h2
+          style={{
+            fontSize: "1.125rem",
+            fontWeight: "800",
+            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            justifyContent: "center",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          <Medal size={20} color={C.amber} /> Muro de la Fama
+        </h2>
+        <p style={{ marginTop: "1rem", color: C.gray300, fontSize: "0.9rem" }}>
+          Aún no hay estadísticas para mostrar.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div
+      ref={hallRef}
       style={{
         backgroundColor: C.navy900,
         borderRadius: RADIUS.lg,
@@ -246,79 +366,67 @@ export default function HallOfFame({
             transform: `translateX(-${hofIndex * 100}%)`,
           }}
         >
-          {/* 1. PICHICHI (GOLES) */}
-          <div style={{ flex: "0 0 100%", width: "100%" }}>
-            <div
-              style={{
-                backgroundColor: C.white,
-                borderRadius: RADIUS.lg,
-                padding: "1.25rem",
-                color: C.navy900,
-                boxShadow: SHADOWS.md,
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
+          {categories.map((cat) => (
+            <div key={cat.key} style={{ flex: "0 0 100%", width: "100%" }}>
               <div
                 style={{
+                  backgroundColor: C.white,
+                  borderRadius: RADIUS.lg,
+                  padding: "1.25rem",
+                  color: C.navy900,
+                  boxShadow: SHADOWS.md,
                   display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  marginBottom: "1rem",
-                  paddingBottom: "0.75rem",
-                  borderBottom: `1px dashed ${C.gray200}`,
+                  flexDirection: "column",
+                  height: "100%",
                 }}
               >
+                {/* Encabezado de categoría */}
                 <div
                   style={{
-                    padding: "0.4rem",
-                    backgroundColor: "rgba(16, 185, 129, 0.1)",
-                    color: C.green,
-                    borderRadius: RADIUS.md,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    marginBottom: "1rem",
+                    paddingBottom: "0.75rem",
+                    borderBottom: `1px dashed ${C.gray200}`,
                   }}
                 >
-                  <Goal size={18} />
-                </div>
-                <div>
-                  <h3
+                  <div
                     style={{
-                      margin: 0,
-                      fontSize: "0.9rem",
-                      fontWeight: "800",
-                      color: C.navy900,
-                      lineHeight: "1.2",
+                      padding: "0.4rem",
+                      backgroundColor: cat.iconBg,
+                      color: cat.iconColor,
+                      borderRadius: RADIUS.md,
                     }}
                   >
-                    El Pichichi
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: "0.65rem",
-                      color: C.gray500,
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Máximos Goleadores
-                  </span>
+                    {cat.icon}
+                  </div>
+                  <div>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "0.9rem",
+                        fontWeight: "800",
+                        color: C.navy900,
+                        lineHeight: "1.2",
+                      }}
+                    >
+                      {cat.title}
+                    </h3>
+                    <span
+                      style={{
+                        fontSize: "0.65rem",
+                        color: C.gray500,
+                        fontWeight: "600",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {cat.subtitle}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              {rankedScorers.length === 0 ? (
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: C.gray400,
-                    margin: 0,
-                    fontStyle: "italic",
-                    flex: 1,
-                    textAlign: "center",
-                    paddingTop: "1rem",
-                  }}
-                >
-                  Aún no hay goles.
-                </p>
-              ) : (
+
+                {/* Lista de jugadores */}
                 <div
                   style={{
                     display: "flex",
@@ -327,21 +435,11 @@ export default function HallOfFame({
                     flex: 1,
                   }}
                 >
-                  {(expScorers
-                    ? rankedScorers
-                    : rankedScorers.slice(0, LIMIT)
+                  {(expanded[cat.key]
+                    ? cat.list
+                    : cat.list.slice(0, LIMIT)
                   ).map((p: any) => {
-                    const {
-                      rankBg,
-                      rankColor,
-                      rowBg,
-                      rowBorder,
-                      avatarBorder,
-                      avatarSize,
-                      nameSize,
-                      nameWeight,
-                    } = getRankStyles(p.rank, C.amber);
-
+                    const styles = getRankStyles(p.rank, cat.accent);
                     return (
                       <div
                         key={p.id}
@@ -351,8 +449,8 @@ export default function HallOfFame({
                           gap: "0.75rem",
                           padding: "0.5rem",
                           borderRadius: RADIUS.md,
-                          backgroundColor: rowBg,
-                          border: rowBorder,
+                          backgroundColor: styles.rowBg,
+                          border: styles.rowBorder,
                         }}
                       >
                         <div
@@ -360,8 +458,8 @@ export default function HallOfFame({
                             width: "22px",
                             height: "22px",
                             borderRadius: "50%",
-                            backgroundColor: rankBg,
-                            color: rankColor,
+                            backgroundColor: styles.rankBg,
+                            color: styles.rankColor,
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
@@ -381,19 +479,19 @@ export default function HallOfFame({
                           loading="lazy"
                           decoding="async"
                           style={{
-                            width: avatarSize,
-                            height: avatarSize,
+                            width: styles.avatarSize,
+                            height: styles.avatarSize,
                             borderRadius: "50%",
                             objectFit: "cover",
-                            border: avatarBorder,
+                            border: styles.avatarBorder,
                           }}
                         />
                         <div style={{ flex: 1 }}>
                           <p
                             style={{
                               margin: 0,
-                              fontSize: nameSize,
-                              fontWeight: nameWeight,
+                              fontSize: styles.nameSize,
+                              fontWeight: styles.nameWeight,
                               color: C.navy900,
                             }}
                           >
@@ -404,557 +502,24 @@ export default function HallOfFame({
                               margin: 0,
                               fontSize: "0.75rem",
                               fontWeight: "700",
-                              color: C.green,
-                            }}
-                          >
-                            {p.goals} goles
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {renderSeeAllButton(
-                    expScorers,
-                    () => setExpScorers(!expScorers),
-                    rankedScorers.length,
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 2. ASISTENCIAS */}
-          <div style={{ flex: "0 0 100%", width: "100%" }}>
-            <div
-              style={{
-                backgroundColor: C.white,
-                borderRadius: RADIUS.lg,
-                padding: "1.25rem",
-                color: C.navy900,
-                boxShadow: SHADOWS.md,
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  marginBottom: "1rem",
-                  paddingBottom: "0.75rem",
-                  borderBottom: `1px dashed ${C.gray200}`,
-                }}
-              >
-                <div
-                  style={{
-                    padding: "0.4rem",
-                    backgroundColor: "rgba(56, 189, 248, 0.1)",
-                    color: C.blueAccent,
-                    borderRadius: RADIUS.md,
-                  }}
-                >
-                  <TrendingUp size={18} />
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "0.9rem",
-                      fontWeight: "800",
-                      color: C.navy900,
-                      lineHeight: "1.2",
-                    }}
-                  >
-                    El Maestro
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: "0.65rem",
-                      color: C.gray500,
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Más Asistencias
-                  </span>
-                </div>
-              </div>
-              {rankedAssists.length === 0 ? (
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: C.gray400,
-                    margin: 0,
-                    fontStyle: "italic",
-                    flex: 1,
-                    textAlign: "center",
-                    paddingTop: "1rem",
-                  }}
-                >
-                  Aún no hay asistencias.
-                </p>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.5rem",
-                    flex: 1,
-                  }}
-                >
-                  {(expAssists
-                    ? rankedAssists
-                    : rankedAssists.slice(0, LIMIT)
-                  ).map((p: any) => {
-                    const {
-                      rankBg,
-                      rankColor,
-                      rowBg,
-                      rowBorder,
-                      avatarBorder,
-                      avatarSize,
-                      nameSize,
-                      nameWeight,
-                    } = getRankStyles(p.rank, C.blueAccent);
-
-                    return (
-                      <div
-                        key={p.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          padding: "0.5rem",
-                          borderRadius: RADIUS.md,
-                          backgroundColor: rowBg,
-                          border: rowBorder,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "22px",
-                            height: "22px",
-                            borderRadius: "50%",
-                            backgroundColor: rankBg,
-                            color: rankColor,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.75rem",
-                            fontWeight: "800",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {p.rank}
-                        </div>
-                        <img
-                          src={
-                            p.imageUrl ||
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=102a43&color=fff&size=50`
-                          }
-                          alt={p.name}
-                          loading="lazy"
-                          decoding="async"
-                          style={{
-                            width: avatarSize,
-                            height: avatarSize,
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                            border: avatarBorder,
-                          }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: nameSize,
-                              fontWeight: nameWeight,
-                              color: C.navy900,
-                            }}
-                          >
-                            {p.name}
-                          </p>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: "0.75rem",
-                              fontWeight: "700",
-                              color: C.blueAccent,
-                            }}
-                          >
-                            {p.assists} asistencias
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {renderSeeAllButton(
-                    expAssists,
-                    () => setExpAssists(!expAssists),
-                    rankedAssists.length,
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 3. MVPs */}
-          <div style={{ flex: "0 0 100%", width: "100%" }}>
-            <div
-              style={{
-                backgroundColor: C.white,
-                borderRadius: RADIUS.lg,
-                padding: "1.25rem",
-                color: C.navy900,
-                boxShadow: SHADOWS.md,
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  marginBottom: "1rem",
-                  paddingBottom: "0.75rem",
-                  borderBottom: `1px dashed ${C.gray200}`,
-                }}
-              >
-                <div
-                  style={{
-                    padding: "0.4rem",
-                    backgroundColor: "rgba(245, 158, 11, 0.1)",
-                    color: C.amber,
-                    borderRadius: RADIUS.md,
-                  }}
-                >
-                  <Award size={18} />
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "0.9rem",
-                      fontWeight: "800",
-                      color: C.navy900,
-                      lineHeight: "1.2",
-                    }}
-                  >
-                    El Galáctico
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: "0.65rem",
-                      color: C.gray500,
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Premios MVP
-                  </span>
-                </div>
-              </div>
-              {rankedMVPs.length === 0 ? (
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: C.gray400,
-                    margin: 0,
-                    fontStyle: "italic",
-                    flex: 1,
-                    textAlign: "center",
-                    paddingTop: "1rem",
-                  }}
-                >
-                  Aún no hay MVPs.
-                </p>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.5rem",
-                    flex: 1,
-                  }}
-                >
-                  {(expMvps ? rankedMVPs : rankedMVPs.slice(0, LIMIT)).map(
-                    (p: any) => {
-                      const {
-                        rankBg,
-                        rankColor,
-                        rowBg,
-                        rowBorder,
-                        avatarBorder,
-                        avatarSize,
-                        nameSize,
-                        nameWeight,
-                      } = getRankStyles(p.rank, C.amber);
-
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.75rem",
-                            padding: "0.5rem",
-                            borderRadius: RADIUS.md,
-                            backgroundColor: rowBg,
-                            border: rowBorder,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: "22px",
-                              height: "22px",
-                              borderRadius: "50%",
-                              backgroundColor: rankBg,
-                              color: rankColor,
+                              color: cat.iconColor,
                               display: "flex",
                               alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "0.75rem",
-                              fontWeight: "800",
-                              flexShrink: 0,
+                              gap: "0.2rem",
                             }}
                           >
-                            {p.rank}
-                          </div>
-                          <img
-                            src={
-                              p.imageUrl ||
-                              `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=102a43&color=fff&size=50`
-                            }
-                            alt={p.name}
-                            loading="lazy"
-                            decoding="async"
-                            style={{
-                              width: avatarSize,
-                              height: avatarSize,
-                              borderRadius: "50%",
-                              objectFit: "cover",
-                              border: avatarBorder,
-                            }}
-                          />
-                          <div style={{ flex: 1 }}>
-                            <p
-                              style={{
-                                margin: 0,
-                                fontSize: nameSize,
-                                fontWeight: nameWeight,
-                                color: C.navy900,
-                              }}
-                            >
-                              {p.name}
-                            </p>
-                            <p
-                              style={{
-                                margin: 0,
-                                fontSize: "0.75rem",
-                                fontWeight: "700",
-                                color: C.amber,
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "0.2rem",
-                              }}
-                            >
-                              <Star size={10} fill={C.amber} /> {p.mvps} MVPs
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    },
-                  )}
-                  {renderSeeAllButton(
-                    expMvps,
-                    () => setExpMvps(!expMvps),
-                    rankedMVPs.length,
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 4. JUGADOR DE HIERRO */}
-          <div style={{ flex: "0 0 100%", width: "100%" }}>
-            <div
-              style={{
-                backgroundColor: C.white,
-                borderRadius: RADIUS.lg,
-                padding: "1.25rem",
-                color: C.navy900,
-                boxShadow: SHADOWS.md,
-                display: "flex",
-                flexDirection: "column",
-                height: "100%",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  marginBottom: "1rem",
-                  paddingBottom: "0.75rem",
-                  borderBottom: `1px dashed ${C.gray200}`,
-                }}
-              >
-                <div
-                  style={{
-                    padding: "0.4rem",
-                    backgroundColor: "rgba(100, 116, 139, 0.1)",
-                    color: C.navy500,
-                    borderRadius: RADIUS.md,
-                  }}
-                >
-                  <Shield size={18} />
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      fontSize: "0.9rem",
-                      fontWeight: "800",
-                      color: C.navy900,
-                      lineHeight: "1.2",
-                    }}
-                  >
-                    El de Hierro
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: "0.65rem",
-                      color: C.gray500,
-                      fontWeight: "600",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    Más Presencias
-                  </span>
-                </div>
-              </div>
-              {rankedIronMen.length === 0 ? (
-                <p
-                  style={{
-                    fontSize: "0.8125rem",
-                    color: C.gray400,
-                    margin: 0,
-                    fontStyle: "italic",
-                    flex: 1,
-                    textAlign: "center",
-                    paddingTop: "1rem",
-                  }}
-                >
-                  Aún no hay eventos.
-                </p>
-              ) : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.5rem",
-                    flex: 1,
-                  }}
-                >
-                  {(expIronMen
-                    ? rankedIronMen
-                    : rankedIronMen.slice(0, LIMIT)
-                  ).map((p: any) => {
-                    const {
-                      rankBg,
-                      rankColor,
-                      rowBg,
-                      rowBorder,
-                      avatarBorder,
-                      avatarSize,
-                      nameSize,
-                      nameWeight,
-                    } = getRankStyles(p.rank, C.navy500);
-
-                    return (
-                      <div
-                        key={p.id}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "0.75rem",
-                          padding: "0.5rem",
-                          borderRadius: RADIUS.md,
-                          backgroundColor: rowBg,
-                          border: rowBorder,
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "22px",
-                            height: "22px",
-                            borderRadius: "50%",
-                            backgroundColor: rankBg,
-                            color: rankColor,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.75rem",
-                            fontWeight: "800",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {p.rank}
-                        </div>
-                        <img
-                          src={
-                            p.imageUrl ||
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=102a43&color=fff&size=50`
-                          }
-                          alt={p.name}
-                          loading="lazy"
-                          decoding="async"
-                          style={{
-                            width: avatarSize,
-                            height: avatarSize,
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                            border: avatarBorder,
-                          }}
-                        />
-                        <div style={{ flex: 1 }}>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: nameSize,
-                              fontWeight: nameWeight,
-                              color: C.navy900,
-                            }}
-                          >
-                            {p.name}
-                          </p>
-                          <p
-                            style={{
-                              margin: 0,
-                              fontSize: "0.75rem",
-                              fontWeight: "700",
-                              color: C.navy500,
-                            }}
-                          >
-                            {p.totalAttendance} presencias
+                            {cat.scoreText(p)}
                           </p>
                         </div>
                       </div>
                     );
                   })}
-                  {renderSeeAllButton(
-                    expIronMen,
-                    () => setExpIronMen(!expIronMen),
-                    rankedIronMen.length,
-                  )}
+
+                  {renderSeeAllButton(cat.key, cat.list.length)}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -967,10 +532,10 @@ export default function HallOfFame({
           marginTop: "1rem",
         }}
       >
-        {[0, 1, 2, 3].map((idx) => (
+        {categories.map((cat, idx) => (
           <div
-            key={idx}
-            onClick={() => setHofIndex(idx)}
+            key={cat.key}
+            onClick={() => goToSlide(idx)}
             style={{
               width: hofIndex === idx ? "20px" : "6px",
               height: "6px",

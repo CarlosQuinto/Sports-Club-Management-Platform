@@ -197,12 +197,13 @@ export default function HeroSection({
         </div>
       ) : (
         <>
+          {/* CARRUSEL CON IMAGEN COMPLETA (contain) */}
           <div
             style={{
               position: "relative",
               width: "100%",
               aspectRatio: "16/9",
-              backgroundColor: C.navy900,
+              backgroundColor: "black",
               overflow: "hidden",
               cursor: "pointer",
             }}
@@ -219,7 +220,8 @@ export default function HeroSection({
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "cover",
+                  objectFit: "contain",
+                  objectPosition: "center",
                   position: "absolute",
                   top: 0,
                   left: 0,
@@ -229,6 +231,7 @@ export default function HeroSection({
               />
             ))}
 
+            {/* Degradado inferior */}
             <div
               style={{
                 position: "absolute",
@@ -242,6 +245,7 @@ export default function HeroSection({
               }}
             />
 
+            {/* Indicadores */}
             {clubInfo.heroImages?.length > 1 && (
               <div
                 style={{
@@ -274,6 +278,7 @@ export default function HeroSection({
             )}
           </div>
 
+          {/* Información del club */}
           <div
             style={{
               padding: "1.75rem 1.5rem",
