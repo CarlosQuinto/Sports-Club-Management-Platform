@@ -68,22 +68,7 @@ export default function GallerySection({
   const groupedAlbums = useMemo(() => {
     const albums: any[] = [];
 
-    // 1. Fotos manuales subidas por el admin (Álbum General)
-    if (gallery && gallery.length > 0) {
-      albums.push({
-        id: "manual-gallery",
-        title: "📸 Galería del Equipo",
-        date: "Colección",
-        photos: gallery
-          .sort(
-            (a: any, b: any) =>
-              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-          )
-          .map((g: any) => ({ id: g.id, url: g.url, caption: g.caption })),
-      });
-    }
-
-    // 2. Fotos de Eventos (Agenda)
+    // 1. PRIMERO: Fotos de Eventos (Agenda) - ¡Ahora están al inicio!
     const eventsWithPhotos = events.filter(
       (e: any) => (e.photoUrls && e.photoUrls.length > 0) || e.photoUrl,
     );
@@ -104,6 +89,21 @@ export default function GallerySection({
         photos: urls.map((url: string) => ({ id: url, url, caption: "" })),
       });
     });
+
+    // 2. AL FINAL: Fotos manuales subidas por el admin (Álbum General)
+    if (gallery && gallery.length > 0) {
+      albums.push({
+        id: "manual-gallery",
+        title: "📸 Galería del Equipo",
+        date: "Colección",
+        photos: gallery
+          .sort(
+            (a: any, b: any) =>
+              new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+          )
+          .map((g: any) => ({ id: g.id, url: g.url, caption: g.caption })),
+      });
+    }
 
     return albums;
   }, [gallery, events]);
