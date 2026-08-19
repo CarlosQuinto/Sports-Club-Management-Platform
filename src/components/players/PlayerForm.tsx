@@ -8,6 +8,9 @@ import {
   SecondaryButton,
 } from "../../components/ui";
 
+// Si tu proyecto ya exporta una constante de colores `C`, importa esa en su lugar.
+const C = { navy900: "#1e3a8a" };
+
 interface PlayerFormProps {
   isPressOnly: boolean;
   editingPlayerId: string | null;
@@ -23,6 +26,8 @@ interface PlayerFormProps {
   setPlayerBirthDate: (val: string) => void;
   playerImageUrl: string;
   setPlayerImageUrl: (val: string) => void;
+  isDT: boolean;
+  setIsDT: (val: boolean) => void;
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
 }
@@ -42,6 +47,8 @@ export default function PlayerForm({
   setPlayerBirthDate,
   playerImageUrl,
   setPlayerImageUrl,
+  isDT,
+  setIsDT,
   onSubmit,
   onCancel,
 }: PlayerFormProps) {
@@ -53,7 +60,6 @@ export default function PlayerForm({
 
   return (
     <SectionCard title={title} icon={<Users size={16} />}>
-      {/* Redujimos el gap de 1rem a 0.5rem aquí abajo 👇 */}
       <form
         onSubmit={onSubmit}
         style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
@@ -114,7 +120,29 @@ export default function PlayerForm({
           placeholder="Link de foto (opcional)"
         />
 
-        {/* Le damos un pequeño margen superior al botón para separarlo sutilmente de los inputs */}
+        {/* NUEVO CHECKBOX PARA EL DT */}
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            fontSize: "0.875rem",
+            fontWeight: "600",
+            color: C.navy900,
+            cursor: "pointer",
+            marginTop: "0.25rem",
+          }}
+        >
+          <input
+            type="checkbox"
+            disabled={isPressOnly}
+            checked={isDT}
+            onChange={(e) => setIsDT(e.target.checked)}
+            style={{ width: "1rem", height: "1rem", cursor: "pointer" }}
+          />
+          👔 Es el Director Técnico (DT)
+        </label>
+
         <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
           <PrimaryButton type="submit" style={{ flex: 1 }}>
             {editingPlayerId ? "Guardar Cambios" : "Agregar"}

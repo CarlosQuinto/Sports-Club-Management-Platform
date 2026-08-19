@@ -1,5 +1,3 @@
-import { Achievement } from "./TrophyCase";
-
 export function generatePlayerAchievements(
   selectedPlayer: any,
   pStats: any,
@@ -7,7 +5,6 @@ export function generatePlayerAchievements(
 ): Achievement[] {
   if (!selectedPlayer || !pStats) return [];
 
-  // Calcular récords en un solo partido para este jugador
   let maxGoalsInMatch = 0;
   let maxAssistsInMatch = 0;
 
@@ -29,8 +26,9 @@ export function generatePlayerAchievements(
 
   const amountPaid = selectedPlayer.amount_paid || 0;
 
-  return [
-    // ─── GOLES ──────────────────────────────────────
+  // ─── ARREGLO BASE (LOGROS GENERALES) ───
+  let achievements: Achievement[] = [
+    // Goles
     {
       id: 1,
       title: "El Bautizo",
@@ -74,7 +72,7 @@ export function generatePlayerAchievements(
       unlocked: pStats.goals >= 100,
     },
 
-    // ─── GOLES EN UN PARTIDO ────────────────────────
+    // Goles en un partido
     {
       id: 5,
       title: "Hat-Trick",
@@ -97,7 +95,7 @@ export function generatePlayerAchievements(
       unlocked: maxGoalsInMatch >= 5,
     },
 
-    // ─── ASISTENCIAS ──────────────────────────────────
+    // Asistencias
     {
       id: 7,
       title: "El Buen Socio",
@@ -134,7 +132,7 @@ export function generatePlayerAchievements(
       unlocked: pStats.assists >= 50,
     },
 
-    // ─── ASISTENCIAS EN UN PARTIDO ──────────────────
+    // Asistencias en un partido
     {
       id: 11,
       title: "Dúo Dinámico",
@@ -157,7 +155,7 @@ export function generatePlayerAchievements(
       unlocked: maxAssistsInMatch >= 5,
     },
 
-    // ─── MVPs ──────────────────────────────────────
+    // MVPs
     {
       id: 13,
       title: "MVP",
@@ -194,44 +192,7 @@ export function generatePlayerAchievements(
       unlocked: pStats.mvps >= 20,
     },
 
-    // ─── ARCOS EN CERO ──────────────────────────────
-    {
-      id: 16,
-      title: "Candado Cerrado",
-      desc: "1 arco en cero",
-      icon: "🔒",
-      unlocked: pStats.cleanSheets >= 1,
-    },
-    {
-      id: 17,
-      title: "La Muralla",
-      desc: "3 arcos en cero",
-      icon: "🧱",
-      unlocked: pStats.cleanSheets >= 3,
-    },
-    {
-      id: 42,
-      title: "Impermeable",
-      desc: "5 arcos en cero",
-      icon: "🧤",
-      unlocked: pStats.cleanSheets >= 5,
-    },
-    {
-      id: 18,
-      title: "El Pulpo",
-      desc: "10 arcos en cero",
-      icon: "🐙",
-      unlocked: pStats.cleanSheets >= 10,
-    },
-    {
-      id: 43,
-      title: "Muro Invencible",
-      desc: "20 arcos en cero",
-      icon: "🏰",
-      unlocked: pStats.cleanSheets >= 20,
-    },
-
-    // ─── PARTIDOS JUGADOS ────────────────────────────
+    // Partidos Jugados
     {
       id: 19,
       title: "El Debutante",
@@ -282,7 +243,7 @@ export function generatePlayerAchievements(
       unlocked: pStats.matchesAttended >= 100,
     },
 
-    // ─── ENTRENAMIENTOS ──────────────────────────────
+    // Entrenamientos
     {
       id: 23,
       title: "Primer Sudor",
@@ -319,7 +280,7 @@ export function generatePlayerAchievements(
       unlocked: pStats.trainingsAttended >= 100,
     },
 
-    // ─── TARJETAS ────────────────────────────────────
+    // Tarjetas
     {
       id: 27,
       title: "1ra Advertencia",
@@ -349,7 +310,7 @@ export function generatePlayerAchievements(
       unlocked: pStats.redCards >= 3,
     },
 
-    // ─── COMBINADOS ──────────────────────────────────
+    // Combinados
     {
       id: 31,
       title: "Doble Amenaza",
@@ -378,7 +339,7 @@ export function generatePlayerAchievements(
         pStats.matchesAttended >= 15,
     },
 
-    // ─── APORTACIONES VOLUNTARIAS ──────────────────
+    // Aportaciones
     {
       id: 33,
       title: "Caridad",
@@ -408,4 +369,143 @@ export function generatePlayerAchievements(
       unlocked: amountPaid >= 1000,
     },
   ];
+
+  // ─── FILTRO PARA PORTEROS: ELIMINAR LOGROS CASI IMPOSIBLES ───
+  if (selectedPlayer.position === "Portero") {
+    const almostImpossibleIds = new Set([
+      2,
+      3,
+      4,
+      36,
+      49, // goles totales altos
+      5,
+      6,
+      37, // hat-trick, póker, manita
+      8,
+      9,
+      10,
+      38, // asistencias totales altas
+      11,
+      12,
+      39, // asistencias en un partido altas
+      31,
+      32,
+      47, // combinados ofensivos
+    ]);
+    achievements = achievements.filter(
+      (ach) => !almostImpossibleIds.has(ach.id),
+    );
+  }
+
+  // ─── EXCLUSIVO PARA PORTEROS: ARCOS EN CERO ───
+  if (selectedPlayer.position === "Portero") {
+    achievements.push(
+      {
+        id: 16,
+        title: "Candado Cerrado",
+        desc: "1 arco en cero",
+        icon: "🔒",
+        unlocked: pStats.cleanSheets >= 1,
+      },
+      {
+        id: 17,
+        title: "La Muralla",
+        desc: "3 arcos en cero",
+        icon: "🧱",
+        unlocked: pStats.cleanSheets >= 3,
+      },
+      {
+        id: 42,
+        title: "Impermeable",
+        desc: "5 arcos en cero",
+        icon: "🧤",
+        unlocked: pStats.cleanSheets >= 5,
+      },
+      {
+        id: 18,
+        title: "El Pulpo",
+        desc: "10 arcos en cero",
+        icon: "🐙",
+        unlocked: pStats.cleanSheets >= 10,
+      },
+      {
+        id: 43,
+        title: "Muro Invencible",
+        desc: "20 arcos en cero",
+        icon: "🏰",
+        unlocked: pStats.cleanSheets >= 20,
+      },
+    );
+  }
+
+  // ─── EXCLUSIVO PARA DT ───
+  if (selectedPlayer.isDT) {
+    achievements.push(
+      {
+        id: 101,
+        title: "El Míster",
+        desc: "Dirige su primer partido",
+        icon: "📋",
+        unlocked: pStats.matchesManaged >= 1,
+      },
+      {
+        id: 102,
+        title: "Pizarra Mágica",
+        desc: "Dirige 5 partidos",
+        icon: "🧠",
+        unlocked: pStats.matchesManaged >= 5,
+      },
+      {
+        id: 103,
+        title: "El Estratega",
+        desc: "Dirige 10 partidos",
+        icon: "🗺️",
+        unlocked: pStats.matchesManaged >= 10,
+      },
+      {
+        id: 104,
+        title: "Maestro del 2-3-1",
+        desc: "Dirige 25 partidos",
+        icon: "🛡️",
+        unlocked: pStats.matchesManaged >= 25,
+      },
+      {
+        id: 105,
+        title: "Revolución 3-2-1",
+        desc: "Dirige 50 partidos",
+        icon: "🔥",
+        unlocked: pStats.matchesManaged >= 50,
+      },
+      {
+        id: 111,
+        title: "El Debut Sojado",
+        desc: "Consigue 1 victoria",
+        icon: "🎉",
+        unlocked: pStats.winsManaged >= 1,
+      },
+      {
+        id: 112,
+        title: "Mente Maestra",
+        desc: "Consigue 5 victorias",
+        icon: "🧠",
+        unlocked: pStats.winsManaged >= 5,
+      },
+      {
+        id: 113,
+        title: "ADN Ganador",
+        desc: "Llega a 15 victorias",
+        icon: "🏆",
+        unlocked: pStats.winsManaged >= 15,
+      },
+      {
+        id: 114,
+        title: "Dinastía",
+        desc: "Llega a 30 victorias",
+        icon: "👑",
+        unlocked: pStats.winsManaged >= 30,
+      },
+    );
+  }
+
+  return achievements;
 }

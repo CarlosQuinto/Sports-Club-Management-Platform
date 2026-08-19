@@ -21,6 +21,8 @@ export function usePlayerStats(
         mvps = 0;
       let yellowCards = 0,
         redCards = 0;
+      let matchesManaged = 0,
+        winsManaged = 0; // NUEVO: matchesManaged y winsManaged
 
       safeEvents
         .filter(
@@ -31,11 +33,37 @@ export function usePlayerStats(
             (att: string) => att === p.id || att === p.name,
           );
 
-          if (ev.eventType === "Partido" && attended) matchesAttended++;
-          if (ev.eventType === "Entrenamiento" && attended) trainingsAttended++;
+          // ─── ENTRENAMIENTOS ───
+          if (ev.eventType === "Entrenamiento" && attended) {
+            trainingsAttended++;
+          }
 
+          // ─── PARTIDOS ───
           if (ev.eventType === "Partido") {
-            // Goles y asistencias
+            if (attended) matchesAttended++;
+
+            // LÓGICA DEL DIRECTOR TÉCNICO
+            if (p.isDT) {
+              matchesManaged++;
+
+              // Determinamos los goles a favor
+              const golesAFavor =
+                ev.scoreOurs !== undefined
+                  ? ev.scoreOurs
+                  : ev.stats
+                    ? ev.stats.filter((s: any) => s.scorer).length
+                    : 0;
+
+              // Determinamos los goles en contra
+              const golesEnContra = ev.scoreTheirs || 0;
+
+              // Si metimos más goles, ¡es una victoria!
+              if (golesAFavor > golesEnContra) {
+                winsManaged++;
+              }
+            }
+
+            // Goles y asistencias como jugador
             ev.stats?.forEach((s: any) => {
               if (s.scorer === p.id || s.scorer === p.name) goals++;
               if (s.assist === p.id || s.assist === p.name) assists++;
@@ -83,6 +111,8 @@ export function usePlayerStats(
         mvps,
         yellowCards,
         redCards,
+        matchesManaged, // SE EXPORTA
+        winsManaged, // NUEVO: SE EXPORTA
         totalAttendance: matchesAttended + trainingsAttended,
       };
     });
