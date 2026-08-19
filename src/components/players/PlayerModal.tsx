@@ -1,9 +1,8 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
   Trophy,
-  Medal,
   Star,
   Goal,
   Shield,
@@ -28,10 +27,52 @@ export default function PlayerModal({
   achievements,
   onClose,
 }: PlayerModalProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Bloquear scroll del fondo y manejar tecla Escape
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    closeButtonRef.current?.focus();
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   if (!player || !pStats) return null;
+
+  // Normalización de datos
+  const isDT = Boolean(player.isDT);
+  const isGoalkeeper = player.position?.trim().toLowerCase() === "portero";
+
+  // Estadísticas con valores por defecto
+  const {
+    goals = 0,
+    assists = 0,
+    matchesAttended = 0,
+    trainingsAttended = 0,
+    cleanSheets = 0,
+    goalsConceded = 0,
+    mvps = 0,
+    yellowCards = 0,
+    redCards = 0,
+    matchesManaged = 0,
+    winsManaged = 0,
+  } = pStats || {};
 
   const modalContent = (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-player-name"
       style={{
         position: "fixed",
         inset: 0,
@@ -51,19 +92,22 @@ export default function PlayerModal({
           width: "100%",
           backgroundColor: C.white,
           borderRadius: RADIUS.xl,
-          padding: "2.5rem 2rem",
+          padding: "clamp(1.5rem, 5vw, 2.5rem) clamp(1rem, 4vw, 2rem)",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           boxShadow: SHADOWS.xl,
           maxHeight: "95vh",
           overflowY: "auto",
+          overscrollBehavior: "contain",
         }}
-        onClick={(e) => e.stopPropagation()} // Evita que un click adentro cierre el modal
+        onClick={(e) => e.stopPropagation()}
       >
         {/* BOTÓN DE CERRAR */}
         <button
+          ref={closeButtonRef}
           onClick={onClose}
+          aria-label="Cerrar modal"
           style={{
             position: "absolute",
             top: "1rem",
@@ -77,36 +121,62 @@ export default function PlayerModal({
           <X size={24} />
         </button>
 
-        {/* FOTO DE PERFIL */}
-        <img
-          src={
-            player.imageUrl ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              player.name,
-            )}&background=102a43&color=fff&size=200&bold=true`
-          }
-          alt={player.name}
-          loading="lazy"
-          decoding="async"
-          onError={(e) => {
-            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              player.name,
-            )}&background=102a43&color=fff&size=200&bold=true`;
-          }}
-          style={{
-            width: "140px",
-            height: "140px",
-            borderRadius: "50%",
-            objectFit: "cover",
-            border: `4px solid ${C.gray100}`,
-            boxShadow: SHADOWS.md,
-            marginBottom: "1.5rem",
-            backgroundColor: C.navy900,
-          }}
-        />
+        {/* FOTO DE PERFIL CON INSIGNIA DT FLOTANTE (más pegada) */}
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <img
+            src={
+              player.imageUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                player.name,
+              )}&background=102a43&color=fff&size=200&bold=true`
+            }
+            alt={player.name}
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                player.name,
+              )}&background=102a43&color=fff&size=200&bold=true`;
+            }}
+            style={{
+              width: "min(140px, 35vw)",
+              height: "min(140px, 35vw)",
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: `4px solid ${C.gray100}`,
+              boxShadow: SHADOWS.md,
+              marginBottom: "1.5rem",
+              backgroundColor: C.navy900,
+            }}
+          />
+
+          {isDT && (
+            <span
+              title="Director Técnico"
+              style={{
+                position: "absolute",
+                top: "-2px", // antes era -8px
+                right: "-2px", // antes era -8px
+                width: "28px", // reduje ligeramente
+                height: "28px",
+                backgroundColor: C.amber,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.9rem",
+                border: "2px solid white", // borde más delgado
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+              }}
+            >
+              📋
+            </span>
+          )}
+        </div>
 
         {/* NOMBRE */}
         <h2
+          id="modal-player-name"
           style={{
             margin: "0 0 0.25rem 0",
             fontSize: "1.625rem",
@@ -129,6 +199,8 @@ export default function PlayerModal({
             backgroundColor: C.navy50,
             padding: "0.5rem 1.25rem",
             borderRadius: RADIUS.full,
+            flexWrap: "wrap",
+            justifyContent: "center",
           }}
         >
           <span
@@ -166,6 +238,7 @@ export default function PlayerModal({
                   fontWeight: "700",
                   color: C.navy600,
                 }}
+                title={`Fecha de nacimiento: ${player.birthDate}`}
               >
                 {calculateAge(player.birthDate)} años
               </span>
@@ -193,9 +266,56 @@ export default function PlayerModal({
               fontSize: "0.6875rem",
             }}
           >
-            Rendimiento de la Temporada
+            Rendimiento histórico
           </p>
 
+          {/* ── SECCIÓN DE DT (AHORA ARRIBA DE LAS ESTADÍSTICAS DE JUGADOR) ── */}
+          {isDT && (
+            <div
+              style={{
+                marginBottom: "0.75rem",
+                padding: "0.75rem",
+                backgroundColor: "#FFFBEB",
+                borderRadius: RADIUS.md,
+                border: `1px solid ${C.amber}`,
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 0.5rem 0",
+                  textAlign: "center",
+                  fontWeight: "700",
+                  color: C.amber,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                  fontSize: "0.625rem",
+                }}
+              >
+                👔 Banquillo Técnico
+              </p>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "0.75rem",
+                }}
+              >
+                <StatBox
+                  icon={<span style={{ fontSize: "18px" }}>📋</span>}
+                  label="Partidos Dirigidos"
+                  value={matchesManaged}
+                />
+                <StatBox
+                  icon={<span style={{ fontSize: "18px" }}>🏆</span>}
+                  label="Victorias como DT"
+                  value={winsManaged}
+                  valueColor={C.amber}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ESTADÍSTICAS PRINCIPALES (JUGADOR / PORTERO) */}
           <div
             style={{
               display: "grid",
@@ -204,17 +324,17 @@ export default function PlayerModal({
               marginBottom: "0.75rem",
             }}
           >
-            {player.position === "Portero" ? (
+            {isGoalkeeper ? (
               <>
                 <StatBox
                   icon={<Hand size={20} color={C.navy600} />}
                   label="Goles Recibidos"
-                  value={pStats.goalsConceded}
+                  value={goalsConceded}
                 />
                 <StatBox
                   icon={<Shield size={20} color={C.navy600} />}
                   label="Arcos en Cero"
-                  value={pStats.cleanSheets}
+                  value={cleanSheets}
                 />
               </>
             ) : (
@@ -222,27 +342,28 @@ export default function PlayerModal({
                 <StatBox
                   icon={<Goal size={20} color={C.navy600} />}
                   label="Goles Anotados"
-                  value={pStats.goals}
+                  value={goals}
                 />
                 <StatBox
                   icon={<TrendingUp size={20} color={C.navy600} />}
                   label="Asistencias"
-                  value={pStats.assists}
+                  value={assists}
                 />
               </>
             )}
             <StatBox
               icon={<Target size={20} color={C.navy600} />}
               label="Entrenamientos"
-              value={pStats.trainingsAttended}
+              value={trainingsAttended}
             />
             <StatBox
               icon={<Trophy size={20} color={C.navy600} />}
               label="Partidos Jugados"
-              value={pStats.matchesAttended}
+              value={matchesAttended}
             />
           </div>
 
+          {/* ESTADÍSTICAS DE TARJETAS Y MVPS */}
           <div
             style={{
               display: "grid",
@@ -253,18 +374,18 @@ export default function PlayerModal({
             <StatBox
               icon={<Star size={16} color={C.amber} fill={C.amber} />}
               label="MVPs"
-              value={pStats.mvps}
+              value={mvps}
               valueColor={C.amber}
             />
             <StatBox
               icon={<span style={{ fontSize: "16px" }}>🟨</span>}
               label="Amarillas"
-              value={pStats.yellowCards}
+              value={yellowCards}
             />
             <StatBox
               icon={<span style={{ fontSize: "16px" }}>🟥</span>}
               label="Rojas"
-              value={pStats.redCards}
+              value={redCards}
             />
           </div>
         </div>

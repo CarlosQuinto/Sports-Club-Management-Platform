@@ -38,28 +38,55 @@ export default function PlayerRow({
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-        <img
-          src={
-            player.imageUrl ||
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              player.name,
-            )}&background=102a43&color=fff`
-          }
-          alt={player.name}
-          loading="lazy"
-          decoding="async"
-          style={{
-            width: "44px",
-            height: "44px",
-            borderRadius: "50%",
-            objectFit: "cover",
-          }}
-          onError={(e) => {
-            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-              player.name,
-            )}&background=102a43&color=fff`;
-          }}
-        />
+        {/* Contenedor de la foto con posición relativa para la insignia */}
+        <div style={{ position: "relative", display: "inline-flex" }}>
+          <img
+            src={
+              player.imageUrl ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                player.name,
+              )}&background=102a43&color=fff`
+            }
+            alt={player.name}
+            loading="lazy"
+            decoding="async"
+            style={{
+              width: "44px",
+              height: "44px",
+              borderRadius: "50%",
+              objectFit: "cover",
+            }}
+            onError={(e) => {
+              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                player.name,
+              )}&background=102a43&color=fff`;
+            }}
+          />
+
+          {/* Insignia flotante para Director Técnico */}
+          {player.isDT && (
+            <span
+              title="Director Técnico"
+              style={{
+                position: "absolute",
+                top: "-6px",
+                right: "-6px",
+                width: "20px",
+                height: "20px",
+                backgroundColor: C.amber,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "0.7rem",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+                border: "2px solid white",
+              }}
+            >
+              📋
+            </span>
+          )}
+        </div>
 
         <div>
           <p style={{ margin: 0, fontWeight: "700", color: C.navy900 }}>
@@ -80,6 +107,8 @@ export default function PlayerRow({
         >
           <button
             onClick={() => onEdit(player)}
+            aria-label={`Editar a ${player.name}`}
+            title="Editar"
             style={{
               background: "none",
               border: "none",
@@ -93,6 +122,8 @@ export default function PlayerRow({
           {canEditAll && (
             <button
               onClick={() => onDelete(player.id)}
+              aria-label={`Eliminar a ${player.name}`}
+              title="Eliminar"
               style={{
                 background: "none",
                 border: "none",

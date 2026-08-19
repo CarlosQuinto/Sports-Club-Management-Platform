@@ -42,6 +42,7 @@ export default function Players({ players, events, perms }: any) {
   const [playerVariant, setPlayerVariant] = useState("");
   const [playerBirthDate, setPlayerBirthDate] = useState("");
   const [playerImageUrl, setPlayerImageUrl] = useState("");
+  const [isDT, setIsDT] = useState(false); // NUEVO ESTADO
 
   // Estados de UI y Filtros
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
@@ -66,6 +67,7 @@ export default function Players({ players, events, perms }: any) {
       variant: playerVariant.trim(),
       birthDate: playerBirthDate || "",
       imageUrl: playerImageUrl.trim(),
+      isDT: isDT, // NUEVO CAMPO A LA BASE DE DATOS
     };
 
     if (editingPlayerId) {
@@ -91,6 +93,7 @@ export default function Players({ players, events, perms }: any) {
     setPlayerVariant("");
     setPlayerBirthDate("");
     setPlayerImageUrl("");
+    setIsDT(false); // Resetear
   };
 
   const handleEdit = (p: any) => {
@@ -101,6 +104,7 @@ export default function Players({ players, events, perms }: any) {
     setPlayerVariant(p.variant || "");
     setPlayerBirthDate(p.birthDate || "");
     setPlayerImageUrl(p.imageUrl || "");
+    setIsDT(p.isDT || false); // Cargar si existe
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -206,6 +210,8 @@ export default function Players({ players, events, perms }: any) {
           setPlayerBirthDate={setPlayerBirthDate}
           playerImageUrl={playerImageUrl}
           setPlayerImageUrl={setPlayerImageUrl}
+          isDT={isDT} // NUEVA PROP
+          setIsDT={setIsDT} // NUEVA PROP
           onSubmit={handleSavePlayer}
           onCancel={handleCancelEdit}
         />
