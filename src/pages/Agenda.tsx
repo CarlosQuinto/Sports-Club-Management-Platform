@@ -288,6 +288,7 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                     setAlbumModalEvent(events.find((e: any) => e.id === id))
                   }
                   onImageClick={(data) => setLightboxData(data)}
+                  onOpenAttendance={(ev) => setAttendanceModalEvent(ev)}
                 />
               ))
           )}

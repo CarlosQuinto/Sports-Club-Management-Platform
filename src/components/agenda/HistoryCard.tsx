@@ -32,6 +32,7 @@ interface HistoryCardProps {
   onOpenLineup: (ev: any) => void;
   onOpenAlbum: (eventId: string) => void;
   onImageClick: (data: any) => void;
+  onOpenAttendance: (ev: any) => void;
 }
 
 export default function HistoryCard({
@@ -46,6 +47,7 @@ export default function HistoryCard({
   onOpenLineup,
   onOpenAlbum,
   onImageClick,
+  onOpenAttendance,
 }: HistoryCardProps) {
   const hasLineup =
     ev.lineup && Object.keys(ev.lineup.positions || {}).length > 0;
@@ -209,9 +211,9 @@ export default function HistoryCard({
                 </div>
               </div>
 
-              {/* ESTADÍSTICAS DEL PARTIDO (MVP, Goles, Tarjetas) */}
+              {/* ESTADÍSTICAS DEL PARTIDO (MVP, Goles, Asistencias, Tarjetas) */}
               {(ev.mvp ||
-                (ev.stats && ev.stats.some((s: any) => s.scorer)) ||
+                (ev.stats && ev.stats.some((s: any) => s.scorer || s.assist)) ||
                 (ev.yellowCards && ev.yellowCards.length > 0) ||
                 (ev.redCards && ev.redCards.length > 0)) && (
                 <div
@@ -256,17 +258,71 @@ export default function HistoryCard({
                         <div
                           style={{
                             display: "flex",
-                            alignItems: "center",
+                            alignItems: "flex-start",
                             gap: "0.4rem",
-                            flexWrap: "wrap",
                           }}
                         >
-                          <Goal size={14} color={C.amber} />
+                          <Goal
+                            size={14}
+                            color={C.amber}
+                            style={{ flexShrink: 0, marginTop: "2px" }}
+                          />
                           <span
                             style={{ color: C.white, fontSize: "0.8125rem" }}
                           >
                             <strong>Goles:</strong>{" "}
                             {scorerEntries.map(([id, count], index) => {
+                              const name = getPlayerName(id, players);
+                              const parts = name.split(" ");
+                              let shortName = parts[0];
+                              if (parts.length > 1)
+                                shortName += " " + parts[1].charAt(0) + ".";
+                              return (
+                                <span key={id}>
+                                  {index > 0 && ", "} {shortName}{" "}
+                                  {count > 1 ? `(${count})` : ""}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        </div>
+                      );
+                    })()}
+
+                  {/* BLOQUE DE ASISTENCIAS */}
+                  {ev.stats &&
+                    ev.stats.length > 0 &&
+                    (() => {
+                      const assistsByPlayer: { [key: string]: number } = {};
+                      ev.stats.forEach((stat: any) => {
+                        if (stat.assist)
+                          assistsByPlayer[stat.assist] =
+                            (assistsByPlayer[stat.assist] || 0) + 1;
+                      });
+                      const assistEntries = Object.entries(assistsByPlayer);
+                      if (assistEntries.length === 0) return null;
+                      return (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "0.4rem",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: "14px",
+                              marginTop: "2px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            👟
+                          </span>
+                          <span
+                            style={{ color: C.white, fontSize: "0.8125rem" }}
+                          >
+                            <strong>Asistencias:</strong>{" "}
+                            {assistEntries.map(([id, count], index) => {
                               const name = getPlayerName(id, players);
                               const parts = name.split(" ");
                               let shortName = parts[0];
@@ -448,31 +504,49 @@ export default function HistoryCard({
           {hasPayments && (
             <div
               style={{
-                marginTop: "1rem",
-                backgroundColor: "rgba(255,255,255,0.05)",
+                marginBottom: "1.25rem", // <-- CAMBIAMOS ESTO (antes era marginTop)
+                backgroundColor: "rgba(245, 158, 11, 0.1)", // Fondo ámbar muy suave
+                border: `1px solid ${C.amber}`,
                 borderRadius: RADIUS.md,
-                padding: "0.75rem",
-                textAlign: "left",
+                padding: "0.75rem 1rem",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                boxShadow: SHADOWS.sm,
               }}
             >
-              <p
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}
+              >
+                <div
+                  style={{
+                    backgroundColor: C.amber,
+                    borderRadius: RADIUS.sm,
+                    padding: "0.3rem",
+                    display: "flex",
+                  }}
+                >
+                  <Wallet size={16} color={C.white} />
+                </div>
+                <span
+                  style={{
+                    fontSize: "0.8125rem",
+                    color: C.navy900,
+                    fontWeight: "700",
+                  }}
+                >
+                  Recaudación Arbitraje
+                </span>
+              </div>
+              <span
                 style={{
-                  margin: 0,
-                  fontSize: "0.75rem",
-                  color: C.navy300,
-                  fontWeight: "600",
-                  display: "flex",
-                  justifyContent: "space-between",
+                  color: C.amber,
+                  fontWeight: "900",
+                  fontSize: "1.1rem",
                 }}
               >
-                <span>
-                  <Wallet size={14} style={{ verticalAlign: "middle" }} /> Total
-                  recaudado arbitraje:
-                </span>
-                <span style={{ color: C.amber, fontWeight: "800" }}>
-                  ${totalPaid}
-                </span>
-              </p>
+                ${totalPaid}
+              </span>
             </div>
           )}
 
@@ -481,7 +555,7 @@ export default function HistoryCard({
             <CollapsibleRoutine routine={ev.routine} />
           )}
 
-          {/* INFO DE LUGAR Y HORA */}
+          {/* INFO DE LUGAR Y HORA Y ASISTENCIA */}
           <div
             style={{
               display: "flex",
@@ -503,11 +577,12 @@ export default function HistoryCard({
               <Clock size={14} /> <strong>Hora:</strong>{" "}
               {formatFriendlyTime(ev.eventTime)}
             </div>
+
             <div
               style={{
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "flex-start",
-                justifyContent: "space-between",
                 gap: "0.5rem",
               }}
             >
@@ -528,6 +603,35 @@ export default function HistoryCard({
                     : "Ninguno"}
                 </span>
               </div>
+
+              {/* 👇 BOTÓN PARA EDITAR ASISTENCIA EN EL HISTORIAL 👇 */}
+              {perms.canEditAgenda && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenAttendance(ev);
+                  }}
+                  style={{
+                    alignSelf: "flex-start",
+                    background: C.white,
+                    border: `1px solid ${C.gray300}`,
+                    borderRadius: RADIUS.md,
+                    color: C.navy600,
+                    cursor: "pointer",
+                    padding: "0.4rem 0.6rem",
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                    boxShadow: SHADOWS.sm,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    marginLeft: "1.3rem",
+                    marginTop: "0.2rem",
+                  }}
+                >
+                  <Edit size={12} /> Editar Asistencia
+                </button>
+              )}
             </div>
           </div>
 
