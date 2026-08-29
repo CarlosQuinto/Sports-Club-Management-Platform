@@ -1,14 +1,24 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Droplet,
   Clock,
   ListChecks,
   ExternalLink,
-  Youtube,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { C, RADIUS, SHADOWS } from "../../components/ui";
 
 export default function RoutineDisplay({ routine }: { routine: any }) {
+  // 👈 NUEVO ESTADO: Rastrea si una fase específica está colapsada
+  const [collapsedPhases, setCollapsedPhases] = useState<
+    Record<string, boolean>
+  >({});
+
+  const togglePhase = (id: string) => {
+    setCollapsedPhases((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
   if (!routine) return null;
 
   // 1. Compatibilidad vieja (Si guardaste un texto enorme antes)
@@ -100,6 +110,8 @@ export default function RoutineDisplay({ routine }: { routine: any }) {
             (sum: number, ex: any) => sum + (Number(ex.duration) || 0),
             0,
           );
+          const isCollapsed = collapsedPhases[block.id]; // 👈 Verificamos si esta fase se ocultó
+
           return (
             <div
               key={block.id}
@@ -111,25 +123,42 @@ export default function RoutineDisplay({ routine }: { routine: any }) {
                 boxShadow: SHADOWS.sm,
               }}
             >
+              {/* 👈 NUEVO: ENCABEZADO CLICABLE PARA COLAPSAR */}
               <div
+                onClick={() => togglePhase(block.id)}
                 style={{
                   backgroundColor: C.navy50,
                   padding: "0.6rem 1rem",
-                  borderBottom: `1px solid ${C.gray200}`,
+                  borderBottom: isCollapsed ? "none" : `1px solid ${C.gray200}`,
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  cursor: "pointer",
+                  transition: "background-color 0.2s",
                 }}
               >
-                <span
+                <div
                   style={{
-                    fontWeight: "700",
-                    color: C.navy900,
-                    fontSize: "0.875rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
                   }}
                 >
-                  {block.title || `Fase ${idx + 1}`}
-                </span>
+                  {isCollapsed ? (
+                    <ChevronDown size={16} color={C.navy600} />
+                  ) : (
+                    <ChevronUp size={16} color={C.navy600} />
+                  )}
+                  <span
+                    style={{
+                      fontWeight: "700",
+                      color: C.navy900,
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    {block.title || `Fase ${idx + 1}`}
+                  </span>
+                </div>
                 {totalMins > 0 && (
                   <span
                     style={{
@@ -146,134 +175,135 @@ export default function RoutineDisplay({ routine }: { routine: any }) {
                 )}
               </div>
 
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "1rem",
-                }}
-              >
-                {block.exercises.length === 0 && (
-                  <span
-                    style={{
-                      fontSize: "0.75rem",
-                      color: C.gray400,
-                      fontStyle: "italic",
-                    }}
-                  >
-                    Sin ejercicios asignados.
-                  </span>
-                )}
-                {block.exercises.map((ex: any) => {
-                  // MAGIA: Detector de YouTube para incrustar video 🎥
-                  const ytMatch = ex.link?.match(
-                    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})/,
-                  );
-
-                  return (
-                    <div
-                      key={ex.id}
+              {/* 👈 NUEVO: CONTENIDO OCULTO CONDICIONALMENTE */}
+              {!isCollapsed && (
+                <div
+                  style={{
+                    padding: "0.75rem 1rem",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                    animation: "fadeIn 0.2s ease",
+                  }}
+                >
+                  {block.exercises.length === 0 && (
+                    <span
                       style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "0.4rem",
-                        borderBottom: `1px dashed ${C.gray100}`,
-                        paddingBottom: "0.5rem",
+                        fontSize: "0.75rem",
+                        color: C.gray400,
+                        fontStyle: "italic",
                       }}
                     >
+                      Sin ejercicios asignados.
+                    </span>
+                  )}
+
+                  {block.exercises.map((ex: any) => {
+                    const ytMatch = ex.link?.match(
+                      /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))((\w|-){11})/,
+                    );
+                    return (
                       <div
+                        key={ex.id}
                         style={{
                           display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "flex-start",
+                          flexDirection: "column",
+                          gap: "0.4rem",
+                          borderBottom: `1px dashed ${C.gray100}`,
+                          paddingBottom: "0.5rem",
                         }}
                       >
-                        <span
-                          style={{
-                            fontSize: "0.8125rem",
-                            color: C.navy800,
-                            fontWeight: "500",
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          <span
-                            style={{
-                              color: C.amber,
-                              marginRight: "0.4rem",
-                              fontWeight: "800",
-                            }}
-                          >
-                            •
-                          </span>
-                          {ex.name}
-                        </span>
-                        {ex.duration && (
-                          <span
-                            style={{
-                              fontSize: "0.7rem",
-                              color: C.gray500,
-                              backgroundColor: C.gray100,
-                              padding: "0.1rem 0.4rem",
-                              borderRadius: RADIUS.sm,
-                              whiteSpace: "nowrap",
-                              marginLeft: "0.5rem",
-                            }}
-                          >
-                            {ex.duration} min
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Si el enlace es de YouTube, renderiza el reproductor */}
-                      {ytMatch ? (
                         <div
                           style={{
-                            marginTop: "0.5rem",
-                            borderRadius: RADIUS.sm,
-                            overflow: "hidden",
-                            border: `1px solid ${C.gray200}`,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
                           }}
                         >
-                          <iframe
-                            width="100%"
-                            height="180"
-                            src={`https://www.youtube.com/embed/${ytMatch[1]}`}
-                            title="YouTube video player"
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          ></iframe>
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: C.navy800,
+                              fontWeight: "500",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            <span
+                              style={{
+                                color: C.amber,
+                                marginRight: "0.4rem",
+                                fontWeight: "800",
+                              }}
+                            >
+                              •
+                            </span>
+                            {ex.name}
+                          </span>
+                          {ex.duration && (
+                            <span
+                              style={{
+                                fontSize: "0.7rem",
+                                color: C.gray500,
+                                backgroundColor: C.gray100,
+                                padding: "0.1rem 0.4rem",
+                                borderRadius: RADIUS.sm,
+                                whiteSpace: "nowrap",
+                                marginLeft: "0.5rem",
+                              }}
+                            >
+                              {ex.duration} min
+                            </span>
+                          )}
                         </div>
-                      ) : ex.link ? (
-                        // Si es otro tipo de enlace (como fittoplay), muestra un botón bonito
-                        <a
-                          href={ex.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "0.3rem",
-                            fontSize: "0.7rem",
-                            color: C.white,
-                            backgroundColor: C.navy900,
-                            padding: "0.35rem 0.75rem",
-                            borderRadius: RADIUS.full,
-                            textDecoration: "none",
-                            fontWeight: "600",
-                            alignSelf: "flex-start",
-                            marginLeft: "1rem",
-                            marginTop: "0.2rem",
-                          }}
-                        >
-                          <ExternalLink size={12} /> Abrir Referencia
-                        </a>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
+
+                        {ytMatch ? (
+                          <div
+                            style={{
+                              marginTop: "0.5rem",
+                              borderRadius: RADIUS.sm,
+                              overflow: "hidden",
+                              border: `1px solid ${C.gray200}`,
+                            }}
+                          >
+                            <iframe
+                              width="100%"
+                              height="180"
+                              src={`https://www.youtube.com/embed/${ytMatch[1]}`}
+                              title="YouTube video player"
+                              frameBorder="0"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            ></iframe>
+                          </div>
+                        ) : ex.link ? (
+                          <a
+                            href={ex.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.3rem",
+                              fontSize: "0.7rem",
+                              color: C.white,
+                              backgroundColor: C.navy900,
+                              padding: "0.35rem 0.75rem",
+                              borderRadius: RADIUS.full,
+                              textDecoration: "none",
+                              fontWeight: "600",
+                              alignSelf: "flex-start",
+                              marginLeft: "1rem",
+                              marginTop: "0.2rem",
+                            }}
+                          >
+                            <ExternalLink size={12} /> Abrir Referencia
+                          </a>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         }

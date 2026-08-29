@@ -24,6 +24,8 @@ import {
   ChevronRight,
   PlayCircle,
   Wallet,
+  ChevronUp,
+  ChevronDown, // 👈 ¡Aquí están!
 } from "lucide-react";
 import {
   C,
@@ -1882,6 +1884,9 @@ export const EventCard = ({
         : [];
   const hasPhotos = photos.length > 0;
 
+  // 👈 NUEVO ESTADO: Controla si la tarjeta entera del evento está abierta o colapsada
+  const [isExpanded, setIsExpanded] = useState(true);
+
   return (
     <div
       id={`event-card-${ev.id}`}
@@ -1897,33 +1902,52 @@ export const EventCard = ({
         boxShadow: SHADOWS.sm,
       }}
     >
+      {/* 👈 NUEVO: ENCABEZADO CLICABLE PARA COLAPSAR LA TARJETA */}
       <div
+        onClick={() => setIsExpanded(!isExpanded)}
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          marginBottom: "1rem",
+          marginBottom: isExpanded ? "1rem" : "0", // Quitamos el margen si está colapsado
+          cursor: "pointer",
         }}
       >
-        <div>
-          <Badge color={isMatch ? "green" : "blue"}>
-            {isMatch ? <Trophy size={11} /> : <Target size={11} />}
-            {isMatch ? "Partido" : "Entrenamiento"}
-          </Badge>
-          <h3
-            style={{
-              margin: "0.75rem 0 0 0",
-              fontSize: "1.0625rem",
-              fontWeight: "700",
-              color: C.navy900,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {ev.title}
-          </h3>
+        <div
+          style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}
+        >
+          {/* Ícono indicador de expansión */}
+          <div style={{ marginTop: "0.25rem" }}>
+            {isExpanded ? (
+              <ChevronUp size={20} color={C.gray400} />
+            ) : (
+              <ChevronDown size={20} color={C.gray400} />
+            )}
+          </div>
+          <div>
+            <Badge color={isMatch ? "green" : "blue"}>
+              {isMatch ? <Trophy size={11} /> : <Target size={11} />}
+              {isMatch ? "Partido" : "Entrenamiento"}
+            </Badge>
+            <h3
+              style={{
+                margin: "0.5rem 0 0 0",
+                fontSize: "1.0625rem",
+                fontWeight: "700",
+                color: C.navy900,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {ev.title}
+            </h3>
+          </div>
         </div>
+
         {perms.canEditAgenda && (
-          <div style={{ display: "flex", gap: "0.25rem" }}>
+          <div
+            style={{ display: "flex", gap: "0.25rem" }}
+            onClick={(e) => e.stopPropagation()} // 👈 Evita colapsar al hacer clic en Editar/Borrar
+          >
             <button
               onClick={onEdit}
               style={{
@@ -1954,210 +1978,222 @@ export const EventCard = ({
         )}
       </div>
 
-      {!isMatch && ev.routine && <RoutineDisplay routine={ev.routine} />}
+      {/* 👈 NUEVO: ENVOLVEMOS EL RESTO EN LA CONDICIÓN isExpanded */}
+      {isExpanded && (
+        <div style={{ animation: "fadeIn 0.3s ease" }}>
+          {!isMatch && ev.routine && <RoutineDisplay routine={ev.routine} />}
 
-      <div
-        style={{
-          fontSize: "0.8125rem",
-          color: C.gray500,
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.5rem",
-          marginBottom: "1rem",
-          marginTop: "1rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <Calendar size={14} /> {formatFriendlyDate(ev.eventDate)}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <Clock size={14} /> {formatFriendlyTime(ev.eventTime)}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <MapPin size={14} /> {ev.location}
-        </div>
-      </div>
-      <div
-        style={{
-          borderTop: `1px solid ${C.gray200}`,
-          paddingTop: "0.875rem",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: "0.5rem",
-        }}
-      >
-        <div>
-          <p
+          <div
             style={{
-              margin: 0,
               fontSize: "0.8125rem",
-              fontWeight: "600",
-              color: attendeesCount > 0 ? C.green : C.gray400,
+              color: C.gray500,
               display: "flex",
-              alignItems: "center",
-              gap: "0.4rem",
-            }}
-          >
-            <Users size={14} /> {attendeesCount} confirmados
-          </p>
-          {attendeesCount > 0 && (
-            <p
-              style={{
-                margin: "0.25rem 0 0 0",
-                fontSize: "0.75rem",
-                color: C.gray400,
-              }}
-            >
-              {(ev.attendees || [])
-                .map((id: string) => getPlayerName(id, players))
-                .join(", ")}
-            </p>
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          {isMatch && (perms.canEditAgenda || hasLineup) && (
-            <SecondaryButton
-              onClick={onOpenLineup}
-              style={{
-                fontSize: "0.75rem",
-                padding: "0.5rem 0.8rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.3rem",
-                borderColor: C.amber,
-                color: C.amber,
-                backgroundColor: C.amberLight,
-              }}
-            >
-              <LayoutTemplate size={14} />{" "}
-              {perms.canEditAgenda
-                ? hasLineup
-                  ? "Editar Alineación"
-                  : "Armar Alineación"
-                : "Ver Alineación"}
-            </SecondaryButton>
-          )}
-          {isMatch && perms.canEditAgenda && (
-            <SecondaryButton
-              onClick={onOpenArbitration}
-              style={{
-                fontSize: "0.75rem",
-                padding: "0.5rem 0.8rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.3rem",
-              }}
-            >
-              <Wallet size={14} /> Pagos Arbitraje
-            </SecondaryButton>
-          )}
-          <SecondaryButton
-            onClick={onOpenAttendance}
-            style={{ fontSize: "0.75rem", padding: "0.5rem 1rem" }}
-          >
-            Confirmar / Cambiar
-          </SecondaryButton>
-        </div>
-      </div>
-
-      {hasPhotos ? (
-        <div style={{ marginTop: "1rem", position: "relative" }}>
-          <img
-            src={photos[0]}
-            alt={`Foto de ${ev.title}`}
-            loading="lazy"
-            decoding="async"
-            style={{
-              width: "100%",
-              maxHeight: "300px",
-              objectFit: "cover",
-              borderRadius: RADIUS.md,
-              cursor: "pointer",
-              boxShadow: SHADOWS.sm,
-            }}
-            onClick={() =>
-              onImageClick &&
-              onImageClick({
-                urls: photos,
-                initialIndex: 0,
-                caption: `${ev.title} - ${formatFriendlyDate(ev.eventDate)}`,
-              })
-            }
-          />
-          {photos.length > 1 && (
-            <div
-              style={{
-                position: "absolute",
-                top: "0.5rem",
-                left: "0.5rem",
-                background: "rgba(0,0,0,0.6)",
-                backdropFilter: "blur(4px)",
-                color: C.white,
-                padding: "0.3rem 0.6rem",
-                borderRadius: RADIUS.full,
-                fontSize: "0.75rem",
-                fontWeight: "700",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.3rem",
-                pointerEvents: "none",
-              }}
-            >
-              <Images size={14} /> 1 / {photos.length}
-            </div>
-          )}
-          {(perms.canEditPortada || perms.canEditAgenda) && (
-            <button
-              onClick={() => onEditPhoto && onEditPhoto(ev.id)}
-              style={{
-                position: "absolute",
-                top: "0.5rem",
-                right: "0.5rem",
-                background: "rgba(255,255,255,0.95)",
-                border: `1px solid ${C.gray200}`,
-                borderRadius: RADIUS.md,
-                padding: "0.4rem 0.6rem",
-                cursor: "pointer",
-                boxShadow: SHADOWS.sm,
-                fontSize: "0.75rem",
-                fontWeight: "600",
-                display: "flex",
-                alignItems: "center",
-                gap: "0.25rem",
-                color: C.navy900,
-              }}
-            >
-              <Edit size={12} />{" "}
-              {photos.length > 1 ? "Editar Álbum" : "Cambiar Foto"}
-            </button>
-          )}
-        </div>
-      ) : (
-        (perms.canEditPortada || perms.canEditAgenda) && (
-          <button
-            onClick={() => onEditPhoto && onEditPhoto(ev.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              flexDirection: "column",
               gap: "0.5rem",
-              width: "100%",
-              padding: "0.75rem",
-              border: `1px dashed ${C.gray300}`,
-              borderRadius: RADIUS.md,
-              backgroundColor: C.white,
-              color: C.navy600,
-              fontWeight: "600",
-              cursor: "pointer",
+              marginBottom: "1rem",
               marginTop: "1rem",
             }}
           >
-            <Camera size={16} /> Crear Álbum del Evento
-          </button>
-        )
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <Calendar size={14} /> {formatFriendlyDate(ev.eventDate)}
+            </div>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <Clock size={14} /> {formatFriendlyTime(ev.eventTime)}
+            </div>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <MapPin size={14} /> {ev.location}
+            </div>
+          </div>
+
+          <div
+            style={{
+              borderTop: `1px solid ${C.gray200}`,
+              paddingTop: "0.875rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "0.5rem",
+            }}
+          >
+            <div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "0.8125rem",
+                  fontWeight: "600",
+                  color: attendeesCount > 0 ? C.green : C.gray400,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                }}
+              >
+                <Users size={14} /> {attendeesCount} confirmados
+              </p>
+              {attendeesCount > 0 && (
+                <p
+                  style={{
+                    margin: "0.25rem 0 0 0",
+                    fontSize: "0.75rem",
+                    color: C.gray400,
+                  }}
+                >
+                  {(ev.attendees || [])
+                    .map((id: string) => getPlayerName(id, players))
+                    .join(", ")}
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              {isMatch && (perms.canEditAgenda || hasLineup) && (
+                <SecondaryButton
+                  onClick={onOpenLineup}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "0.5rem 0.8rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    borderColor: C.amber,
+                    color: C.amber,
+                    backgroundColor: C.amberLight,
+                  }}
+                >
+                  <LayoutTemplate size={14} />{" "}
+                  {perms.canEditAgenda
+                    ? hasLineup
+                      ? "Editar Alineación"
+                      : "Armar Alineación"
+                    : "Ver Alineación"}
+                </SecondaryButton>
+              )}
+              {isMatch && perms.canEditAgenda && (
+                <SecondaryButton
+                  onClick={onOpenArbitration}
+                  style={{
+                    fontSize: "0.75rem",
+                    padding: "0.5rem 0.8rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                  }}
+                >
+                  <Wallet size={14} /> Pagos Arbitraje
+                </SecondaryButton>
+              )}
+              <SecondaryButton
+                onClick={onOpenAttendance}
+                style={{ fontSize: "0.75rem", padding: "0.5rem 1rem" }}
+              >
+                Confirmar / Cambiar
+              </SecondaryButton>
+            </div>
+          </div>
+
+          {hasPhotos ? (
+            <div style={{ marginTop: "1rem", position: "relative" }}>
+              <img
+                src={photos[0]}
+                alt={`Foto de ${ev.title}`}
+                loading="lazy"
+                decoding="async"
+                style={{
+                  width: "100%",
+                  maxHeight: "300px",
+                  objectFit: "cover",
+                  borderRadius: RADIUS.md,
+                  cursor: "pointer",
+                  boxShadow: SHADOWS.sm,
+                }}
+                onClick={() =>
+                  onImageClick &&
+                  onImageClick({
+                    urls: photos,
+                    initialIndex: 0,
+                    caption: `${ev.title} - ${formatFriendlyDate(ev.eventDate)}`,
+                  })
+                }
+              />
+              {photos.length > 1 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "0.5rem",
+                    left: "0.5rem",
+                    background: "rgba(0,0,0,0.6)",
+                    backdropFilter: "blur(4px)",
+                    color: C.white,
+                    padding: "0.3rem 0.6rem",
+                    borderRadius: RADIUS.full,
+                    fontSize: "0.75rem",
+                    fontWeight: "700",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    pointerEvents: "none",
+                  }}
+                >
+                  <Images size={14} /> 1 / {photos.length}
+                </div>
+              )}
+              {(perms.canEditPortada || perms.canEditAgenda) && (
+                <button
+                  onClick={() => onEditPhoto && onEditPhoto(ev.id)}
+                  style={{
+                    position: "absolute",
+                    top: "0.5rem",
+                    right: "0.5rem",
+                    background: "rgba(255,255,255,0.95)",
+                    border: `1px solid ${C.gray200}`,
+                    borderRadius: RADIUS.md,
+                    padding: "0.4rem 0.6rem",
+                    cursor: "pointer",
+                    boxShadow: SHADOWS.sm,
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                    color: C.navy900,
+                  }}
+                >
+                  <Edit size={12} />{" "}
+                  {photos.length > 1 ? "Editar Álbum" : "Cambiar Foto"}
+                </button>
+              )}
+            </div>
+          ) : (
+            (perms.canEditPortada || perms.canEditAgenda) && (
+              <button
+                onClick={() => onEditPhoto && onEditPhoto(ev.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                  width: "100%",
+                  padding: "0.75rem",
+                  border: `1px dashed ${C.gray300}`,
+                  borderRadius: RADIUS.md,
+                  backgroundColor: C.white,
+                  color: C.navy600,
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  marginTop: "1rem",
+                }}
+              >
+                <Camera size={16} /> Crear Álbum del Evento
+              </button>
+            )
+          )}
+        </div>
       )}
     </div>
   );

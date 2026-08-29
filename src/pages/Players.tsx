@@ -41,7 +41,7 @@ export default function Players({ players, events, perms }: any) {
   const [playerBirthDate, setPlayerBirthDate] = useState("");
   const [playerImageUrl, setPlayerImageUrl] = useState("");
   const [isDT, setIsDT] = useState(false);
-  const [playerActive, setPlayerActive] = useState(true); // 👈 NUEVO ESTADO
+  const [playerActive, setPlayerActive] = useState(true);
 
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
@@ -64,7 +64,7 @@ export default function Players({ players, events, perms }: any) {
       birthDate: playerBirthDate || "",
       imageUrl: playerImageUrl.trim(),
       isDT: isDT,
-      active: playerActive, // 👈 NUEVO CAMPO A LA BD
+      active: playerActive,
     };
 
     if (editingPlayerId) {
@@ -89,7 +89,7 @@ export default function Players({ players, events, perms }: any) {
     setPlayerBirthDate("");
     setPlayerImageUrl("");
     setIsDT(false);
-    setPlayerActive(true); // 👈 Resetear a activo
+    setPlayerActive(true);
   };
 
   const handleEdit = (p: any) => {
@@ -101,7 +101,7 @@ export default function Players({ players, events, perms }: any) {
     setPlayerBirthDate(p.birthDate || "");
     setPlayerImageUrl(p.imageUrl || "");
     setIsDT(p.isDT || false);
-    setPlayerActive(p.active !== false); // 👈 Cargar estado (por defecto true si no existe)
+    setPlayerActive(p.active !== false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -123,7 +123,7 @@ export default function Players({ players, events, perms }: any) {
   const positionCounts = useMemo(() => {
     const counts = { Portero: 0, Defensa: 0, Medio: 0, Delantero: 0 };
     players.forEach((p: any) => {
-      if (p.active === false) return; // 👈 IGNORAR INACTIVOS DEL CONTEO
+      if (p.active === false) return;
       if (counts[p.position as keyof typeof counts] !== undefined) {
         counts[p.position as keyof typeof counts]++;
       } else {
@@ -141,7 +141,6 @@ export default function Players({ players, events, perms }: any) {
 
       const isActive = player.active !== false;
 
-      // 👈 LÓGICA DE FILTRADO PARA INACTIVOS
       if (positionFilter === "Inactivos") {
         return matchesSearch && !isActive;
       }
@@ -173,25 +172,21 @@ export default function Players({ players, events, perms }: any) {
             icon={<Hand size={16} color={C.navy600} />}
             label="Porteros"
             value={positionCounts.Portero}
-            style={{ padding: "0.75rem", fontSize: "0.75rem" }}
           />
           <StatBox
             icon={<Shield size={16} color={C.navy600} />}
             label="Defensas"
             value={positionCounts.Defensa}
-            style={{ padding: "0.75rem", fontSize: "0.75rem" }}
           />
           <StatBox
             icon={<Target size={16} color={C.navy600} />}
             label="Medios"
             value={positionCounts.Medio}
-            style={{ padding: "0.75rem", fontSize: "0.75rem" }}
           />
           <StatBox
             icon={<Goal size={16} color={C.navy600} />}
             label="Delanteros"
             value={positionCounts.Delantero}
-            style={{ padding: "0.75rem", fontSize: "0.75rem" }}
           />
         </div>
       </SectionCard>
@@ -215,52 +210,14 @@ export default function Players({ players, events, perms }: any) {
           isDT={isDT}
           setIsDT={setIsDT}
           playerActive={playerActive}
-          setPlayerActive={setPlayerActive} // 👈 NUEVAS PROPS
+          setPlayerActive={setPlayerActive}
           onSubmit={handleSavePlayer}
           onCancel={handleCancelEdit}
         />
       )}
 
-      <SectionCard
-        title={
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "100%",
-            }}
-          >
-            <span
-              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-            >
-              <Trophy size={16} /> Plantilla Oficial
-            </span>
-            {players.length > 1 && (
-              <button
-                onClick={() => setShowCompareModal(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.4rem",
-                  padding: "0.3rem 0.7rem",
-                  backgroundColor: C.blueAccent,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: RADIUS.md,
-                  fontWeight: "600",
-                  fontSize: "0.7rem",
-                  cursor: "pointer",
-                  boxShadow: SHADOWS.sm,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                <ArrowRightLeft size={14} /> Comparar
-              </button>
-            )}
-          </div>
-        }
-      >
+      {/* 👇 SOLUCIÓN: Título en string, ícono nativo 👇 */}
+      <SectionCard title="Plantilla Oficial" icon={<Trophy size={16} />}>
         <div
           style={{
             display: "flex",
@@ -269,23 +226,50 @@ export default function Players({ players, events, perms }: any) {
             marginBottom: "1.25rem",
           }}
         >
-          <div style={{ position: "relative" }}>
-            <Search
-              size={16}
-              color={C.gray400}
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "0.75rem",
-                transform: "translateY(-50%)",
-              }}
-            />
-            <FormInput
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar por nombre o dorsal..."
-              style={{ paddingLeft: "2.25rem" }}
-            />
+          {/* 👇 FILA: BARRA DE BÚSQUEDA + BOTÓN DE COMPARAR 👇 */}
+          <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <Search
+                size={16}
+                color={C.gray400}
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "0.75rem",
+                  transform: "translateY(-50%)",
+                }}
+              />
+              <FormInput
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Buscar por nombre o dorsal..."
+                style={{ paddingLeft: "2.25rem", width: "100%" }}
+              />
+            </div>
+
+            {players.length > 1 && (
+              <button
+                onClick={() => setShowCompareModal(true)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.4rem",
+                  padding: "0 1rem",
+                  backgroundColor: C.blueAccent,
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: RADIUS.md,
+                  fontWeight: "600",
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                  boxShadow: SHADOWS.sm,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <ArrowRightLeft size={14} /> Comparar
+              </button>
+            )}
           </div>
 
           <div
@@ -297,7 +281,6 @@ export default function Players({ players, events, perms }: any) {
               paddingBottom: "0.25rem",
             }}
           >
-            {/* 👈 NUEVO: Filtro de inactivos renderizado dinámicamente */}
             {[
               "Todos",
               "Portero",
