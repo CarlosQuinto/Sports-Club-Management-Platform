@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { X, Hand, Plus, Award, Goal } from "lucide-react";
 import {
@@ -29,7 +29,6 @@ export default function StatsModal({
     { id: string; conceded: number }[]
   >([]);
   const [statsFormMVP, setStatsFormMVP] = useState("");
-  // ── NUEVO ESTADO PARA EL DT ──
   const [statsFormManager, setStatsFormManager] = useState("");
   const [statsFormYellowCards, setStatsFormYellowCards] = useState<string[]>(
     [],
@@ -38,6 +37,14 @@ export default function StatsModal({
   const [statsFormScorers, setStatsFormScorers] = useState<
     { scorer: string; assist: string }[]
   >([]);
+
+  // 👇 NUEVO: Filtramos para obtener SOLO a los jugadores que asistieron a ESTE evento
+  const attendingPlayers = useMemo(() => {
+    if (!ev || !ev.attendees) return [];
+    return players.filter(
+      (p: any) => ev.attendees.includes(p.id) || ev.attendees.includes(p.name),
+    );
+  }, [players, ev]);
 
   // Cargar datos iniciales del evento al abrir el modal
   useEffect(() => {
@@ -76,7 +83,6 @@ export default function StatsModal({
           : ""),
     );
 
-    // ── INICIALIZAR EL DT ──
     setStatsFormManager(
       players.find((p: any) => p.name === ev.manager || p.id === ev.manager)
         ?.id ||
@@ -164,7 +170,7 @@ export default function StatsModal({
       goalkeeper: null,
       stats: statsFormScorers,
       mvp: statsFormMVP,
-      manager: statsFormManager, // ── GUARDAR EL DT ──
+      manager: statsFormManager,
       yellowCards: statsFormYellowCards.filter((id) => id.trim() !== ""),
       redCards: statsFormRedCards.filter((id) => id.trim() !== ""),
     });
@@ -234,7 +240,7 @@ export default function StatsModal({
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
         >
-          {/* ── SELECTOR DEL DIRECTOR TÉCNICO (NUEVO) ── */}
+          {/* ── SELECTOR DEL DIRECTOR TÉCNICO ── */}
           <div
             style={{
               backgroundColor: C.gray50,
@@ -261,7 +267,7 @@ export default function StatsModal({
               style={{ marginTop: "0.5rem" }}
             >
               <option value="">¿Quién dirigió el equipo?</option>
-              {players.map((p: any) => (
+              {attendingPlayers.map((p: any) => (
                 <option key={`dt-${p.id}`} value={p.id}>
                   {p.name}
                 </option>
@@ -310,7 +316,7 @@ export default function StatsModal({
                 style={{
                   background: "none",
                   border: "none",
-                  color: C.blue,
+                  color: C.blueAccent,
                   cursor: "pointer",
                   fontWeight: "600",
                   fontSize: "0.75rem",
@@ -353,7 +359,7 @@ export default function StatsModal({
                   style={{ flex: 2 }}
                 >
                   <option value="">Jugador</option>
-                  {players.map((p: any) => (
+                  {attendingPlayers.map((p: any) => (
                     <option key={`gk-${p.id}`} value={p.id}>
                       {p.name}
                     </option>
@@ -421,7 +427,7 @@ export default function StatsModal({
               style={{ marginTop: "0.5rem", borderColor: `${C.amber}60` }}
             >
               <option value="">¿Quién fue la estrella?</option>
-              {players.map((p: any) => (
+              {attendingPlayers.map((p: any) => (
                 <option key={`mvp-${p.id}`} value={p.id}>
                   {p.name}
                 </option>
@@ -468,7 +474,7 @@ export default function StatsModal({
                   }}
                 >
                   <option value="">Jugador</option>
-                  {players.map((p: any) => (
+                  {attendingPlayers.map((p: any) => (
                     <option key={`yc-opt-${p.id}`} value={p.id}>
                       {p.name}
                     </option>
@@ -555,7 +561,7 @@ export default function StatsModal({
                   }}
                 >
                   <option value="">Jugador</option>
-                  {players.map((p: any) => (
+                  {attendingPlayers.map((p: any) => (
                     <option key={`rc-opt-${p.id}`} value={p.id}>
                       {p.name}
                     </option>
@@ -654,7 +660,7 @@ export default function StatsModal({
                     style={{ marginBottom: "0.5rem" }}
                   >
                     <option value="">¿Quién anotó el gol?</option>
-                    {players.map((p: any) => (
+                    {attendingPlayers.map((p: any) => (
                       <option key={`sc-${p.id}`} value={p.id}>
                         {p.name}
                       </option>
@@ -674,7 +680,7 @@ export default function StatsModal({
                     }
                   >
                     <option value="">¿Asistencia? (Opcional)</option>
-                    {players.map((p: any) => (
+                    {attendingPlayers.map((p: any) => (
                       <option key={`as-${p.id}`} value={p.id}>
                         {p.name}
                       </option>

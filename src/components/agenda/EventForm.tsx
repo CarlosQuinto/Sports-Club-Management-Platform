@@ -4,10 +4,12 @@ import {
   SectionCard,
   SegmentedControl,
   FormInput,
-  FormTextarea,
   PrimaryButton,
   SecondaryButton,
 } from "../../components/ui";
+
+// 👇 Importamos nuestro nuevo constructor de rutinas
+import RoutineBuilder from "./RoutineBuilder";
 
 interface EventFormProps {
   perms: any;
@@ -16,8 +18,9 @@ interface EventFormProps {
   setEventType: (val: "Partido" | "Entrenamiento") => void;
   eventTitle: string;
   setEventTitle: (val: string) => void;
-  eventRoutine: string;
-  setEventRoutine: (val: string) => void;
+  // 👇 CAMBIO: eventRoutine ahora es un arreglo (Array) de bloques, no un texto
+  eventRoutine: any[];
+  setEventRoutine: (val: any[]) => void;
   eventDate: string;
   setEventDate: (val: string) => void;
   eventTime: string;
@@ -69,7 +72,8 @@ export default function EventForm({
           value={eventType}
           onChange={(v: any) => {
             setEventType(v);
-            if (v === "Partido") setEventRoutine("");
+            // 👇 CAMBIO: Al cambiar a partido, limpiamos con un array vacío
+            if (v === "Partido") setEventRoutine([]);
           }}
         />
 
@@ -77,16 +81,14 @@ export default function EventForm({
           required
           value={eventTitle}
           onChange={(e) => setEventTitle(e.target.value)}
-          placeholder={eventType === "Partido" ? "Rival" : "Descripción"}
+          placeholder={
+            eventType === "Partido" ? "Rival" : "Título del Entrenamiento"
+          }
         />
 
+        {/* 👇 CAMBIO: Reemplazamos FormTextarea por RoutineBuilder */}
         {eventType === "Entrenamiento" && (
-          <FormTextarea
-            value={eventRoutine}
-            onChange={(e) => setEventRoutine(e.target.value)}
-            placeholder="Rutina del día..."
-            rows={3}
-          />
+          <RoutineBuilder routine={eventRoutine} onChange={setEventRoutine} />
         )}
 
         <div style={{ display: "flex", gap: "0.75rem" }}>

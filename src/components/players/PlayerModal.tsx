@@ -52,6 +52,7 @@ export default function PlayerModal({
   // Normalización de datos
   const isDT = Boolean(player.isDT);
   const isGoalkeeper = player.position?.trim().toLowerCase() === "portero";
+  const isActive = player.active !== false; // 👈 NUEVO: Validación de estado activo
 
   // Estadísticas con valores por defecto
   const {
@@ -121,7 +122,7 @@ export default function PlayerModal({
           <X size={24} />
         </button>
 
-        {/* FOTO DE PERFIL CON INSIGNIA DT FLOTANTE (más pegada) */}
+        {/* FOTO DE PERFIL CON INSIGNIA DT FLOTANTE */}
         <div style={{ position: "relative", display: "inline-block" }}>
           <img
             src={
@@ -143,10 +144,11 @@ export default function PlayerModal({
               height: "min(140px, 35vw)",
               borderRadius: "50%",
               objectFit: "cover",
-              border: `4px solid ${C.gray100}`,
+              border: `4px solid ${!isActive ? C.gray200 : isDT ? C.amberLight : C.gray100}`, // 👈 Borde gris si está inactivo
               boxShadow: SHADOWS.md,
               marginBottom: "1.5rem",
               backgroundColor: C.navy900,
+              filter: isActive ? "none" : "grayscale(100%)", // 👈 NUEVO: Filtro gris para inactivos
             }}
           />
 
@@ -155,9 +157,9 @@ export default function PlayerModal({
               title="Director Técnico"
               style={{
                 position: "absolute",
-                top: "-2px", // antes era -8px
-                right: "-2px", // antes era -8px
-                width: "28px", // reduje ligeramente
+                top: "-2px",
+                right: "-2px",
+                width: "28px",
                 height: "28px",
                 backgroundColor: C.amber,
                 borderRadius: "50%",
@@ -165,7 +167,7 @@ export default function PlayerModal({
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "0.9rem",
-                border: "2px solid white", // borde más delgado
+                border: "2px solid white",
                 boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
               }}
             >
@@ -181,7 +183,7 @@ export default function PlayerModal({
             margin: "0 0 0.25rem 0",
             fontSize: "1.625rem",
             fontWeight: "800",
-            color: C.navy900,
+            color: isActive ? C.navy900 : C.gray500, // 👈 Color atenuado si es baja
             textAlign: "center",
             letterSpacing: "-0.02em",
           }}
@@ -203,24 +205,59 @@ export default function PlayerModal({
             justifyContent: "center",
           }}
         >
-          <span
-            style={{ fontSize: "1.25rem", fontWeight: "800", color: C.navy900 }}
-          >
-            #{player.number}
-          </span>
-          <span
-            style={{ width: "1px", height: "16px", backgroundColor: C.navy200 }}
-          />
+          {/* 👈 NUEVO: Etiqueta de INACTIVO */}
+          {!isActive && (
+            <>
+              <span
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: "800",
+                  color: C.red,
+                }}
+              >
+                INACTIVO
+              </span>
+              <span
+                style={{
+                  width: "1px",
+                  height: "16px",
+                  backgroundColor: C.navy200,
+                }}
+              />
+            </>
+          )}
+
+          {!isDT && (
+            <>
+              <span
+                style={{
+                  fontSize: "1.25rem",
+                  fontWeight: "800",
+                  color: C.navy900,
+                }}
+              >
+                #{player.number}
+              </span>
+              <span
+                style={{
+                  width: "1px",
+                  height: "16px",
+                  backgroundColor: C.navy200,
+                }}
+              />
+            </>
+          )}
           <span
             style={{
               fontSize: "0.8125rem",
               fontWeight: "600",
-              color: C.navy600,
+              color: isDT ? C.amber : C.navy600,
               textTransform: "uppercase",
               letterSpacing: "0.05em",
             }}
           >
-            {player.position} {player.variant ? ` • ${player.variant}` : ""}
+            {isDT ? "Director Técnico" : player.position}{" "}
+            {player.variant ? ` • ${player.variant}` : ""}
           </span>
 
           {player.birthDate && (
@@ -269,7 +306,7 @@ export default function PlayerModal({
             Rendimiento histórico
           </p>
 
-          {/* ── SECCIÓN DE DT (AHORA ARRIBA DE LAS ESTADÍSTICAS DE JUGADOR) ── */}
+          {/* ── SECCIÓN DE DT ── */}
           {isDT && (
             <div
               style={{
@@ -363,35 +400,37 @@ export default function PlayerModal({
             />
           </div>
 
-          {/* ESTADÍSTICAS DE TARJETAS Y MVPS */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: "0.5rem",
-            }}
-          >
-            <StatBox
-              icon={<Star size={16} color={C.amber} fill={C.amber} />}
-              label="MVPs"
-              value={mvps}
-              valueColor={C.amber}
-            />
-            <StatBox
-              icon={<span style={{ fontSize: "16px" }}>🟨</span>}
-              label="Amarillas"
-              value={yellowCards}
-            />
-            <StatBox
-              icon={<span style={{ fontSize: "16px" }}>🟥</span>}
-              label="Rojas"
-              value={redCards}
-            />
-          </div>
+          {/* ESTADÍSTICAS DE TARJETAS Y MVPS (No mostradas para DTs) */}
+          {!isDT && (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: "0.5rem",
+              }}
+            >
+              <StatBox
+                icon={<Star size={16} color={C.amber} fill={C.amber} />}
+                label="MVPs"
+                value={mvps}
+                valueColor={C.amber}
+              />
+              <StatBox
+                icon={<span style={{ fontSize: "16px" }}>🟨</span>}
+                label="Amarillas"
+                value={yellowCards}
+              />
+              <StatBox
+                icon={<span style={{ fontSize: "16px" }}>🟥</span>}
+                label="Rojas"
+                value={redCards}
+              />
+            </div>
+          )}
         </div>
 
         {/* VITRINA DE TROFEOS */}
-        <TrophyCase achievements={achievements} />
+        {!isDT && <TrophyCase achievements={achievements} />}
       </div>
     </div>
   );

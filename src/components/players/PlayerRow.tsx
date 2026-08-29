@@ -1,6 +1,6 @@
 import React from "react";
 import { Edit, Trash2 } from "lucide-react";
-import { C, RADIUS } from "../../components/ui";
+import { C, RADIUS, Badge } from "../../components/ui"; // 👈 Añadí Badge aquí
 import { isBirthdayToday } from "../../utils/helpers";
 
 interface PlayerRowProps {
@@ -21,6 +21,7 @@ export default function PlayerRow({
   onDelete,
 }: PlayerRowProps) {
   const isBday = isBirthdayToday(player.birthDate);
+  const isActive = player.active !== false; // 👈 NUEVO: Validación de estado activo
 
   return (
     <div
@@ -30,9 +31,10 @@ export default function PlayerRow({
         justifyContent: "space-between",
         alignItems: "center",
         padding: "0.875rem 1rem",
-        border: `1px solid ${isBday ? C.amber : C.gray200}`,
+        border: `1px solid ${isBday && isActive ? C.amber : C.gray200}`, // 👈 Sin borde dorado si es baja
         borderRadius: RADIUS.md,
-        backgroundColor: isBday ? C.amberLight : C.white,
+        backgroundColor: !isActive ? C.gray50 : isBday ? C.amberLight : C.white, // 👈 Fondo grisáceo si es baja
+        opacity: isActive ? 1 : 0.7, // 👈 Se atenúa si está inactivo
         cursor: "pointer",
         transition: "all 0.2s",
       }}
@@ -55,6 +57,7 @@ export default function PlayerRow({
               height: "44px",
               borderRadius: "50%",
               objectFit: "cover",
+              filter: isActive ? "none" : "grayscale(100%)", // 👈 Foto en blanco y negro si es baja
             }}
             onError={(e) => {
               e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -89,12 +92,39 @@ export default function PlayerRow({
         </div>
 
         <div>
-          <p style={{ margin: 0, fontWeight: "700", color: C.navy900 }}>
-            {player.name} {isBday && "🍰"}
+          <p
+            style={{
+              margin: 0,
+              fontWeight: "700",
+              color: isActive ? C.navy900 : C.gray500,
+            }}
+          >
+            {player.name} {isBday && isActive && "🍰"}
           </p>
-          <p style={{ margin: 0, fontSize: "0.75rem", color: C.navy500 }}>
-            #{player.number} • {player.position}{" "}
-            {player.variant ? `(${player.variant})` : ""}
+          <p
+            style={{
+              margin: 0,
+              fontSize: "0.75rem",
+              color: C.navy500,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.3rem",
+            }}
+          >
+            {/* 👇 NUEVO: Etiqueta roja de Baja */}
+            {!isActive && (
+              <Badge
+                color="red"
+                style={{ fontSize: "0.6rem", padding: "1px 4px" }}
+              >
+                Baja
+              </Badge>
+            )}
+            <span>
+              {player.isDT ? "Cuerpo Técnico" : `#${player.number}`}
+              {!player.isDT && ` • ${player.position}`}
+              {player.variant ? ` (${player.variant})` : ""}
+            </span>
           </p>
         </div>
       </div>
