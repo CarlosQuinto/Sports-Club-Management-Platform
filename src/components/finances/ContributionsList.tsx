@@ -1,5 +1,5 @@
-import React from "react";
-import { Users, CheckCircle } from "lucide-react";
+import React, { useMemo } from "react";
+import { Users, CheckCircle, AlertCircle } from "lucide-react";
 import { C, RADIUS, SectionCard } from "../../components/ui";
 import { formatCurrency } from "../finances/helpers";
 import { Player } from "../finances/types";
@@ -15,20 +15,30 @@ export function ContributionsList({
   canEdit,
   onUpdatePayment,
 }: ContributionsListProps) {
+  // 👇 NUEVO: Ordenamos para que los que NO han aportado salgan hasta arriba
+  const sortedPlayers = useMemo(() => {
+    return [...players].sort((a, b) => {
+      const aPaid = (a.amount_paid || 0) > 0 ? 1 : 0;
+      const bPaid = (b.amount_paid || 0) > 0 ? 1 : 0;
+      if (aPaid !== bPaid) return aPaid - bPaid; // 0 viene antes que 1
+      return a.name.localeCompare(b.name); // Luego alfabéticamente
+    });
+  }, [players]);
+
   return (
     <SectionCard
-      title="Control de Aportaciones"
+      title="Aportaciones por Jugador"
       icon={<Users size={14} color={C.navy600} />}
     >
-      {players.length === 0 ? (
+      {sortedPlayers.length === 0 ? (
         <p style={{ textAlign: "center", color: C.gray400, margin: "1rem 0" }}>
-          No hay jugadores registrados.
+          No hay jugadores activos registrados.
         </p>
       ) : (
         <div
           style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
         >
-          {players.map((player) => {
+          {sortedPlayers.map((player) => {
             const amountPaid = player.amount_paid || 0;
             const hasContributed = amountPaid > 0;
             return (
@@ -39,9 +49,10 @@ export function ContributionsList({
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "0.5rem 0.75rem",
-                  border: `1px solid ${C.gray200}`,
+                  border: `1px solid ${hasContributed ? C.greenBorder : C.gray200}`,
                   borderRadius: RADIUS.md,
                   backgroundColor: hasContributed ? C.greenLight : C.white,
+                  transition: "all 0.2s",
                 }}
               >
                 <p
@@ -69,7 +80,7 @@ export function ContributionsList({
                         cursor: "pointer",
                         fontWeight: "600",
                         fontSize: "0.75rem",
-                        color: hasContributed ? C.green : C.gray400,
+                        color: hasContributed ? C.green : C.red,
                       }}
                     >
                       {hasContributed ? (
@@ -77,7 +88,9 @@ export function ContributionsList({
                           <CheckCircle size={14} /> {formatCurrency(amountPaid)}
                         </>
                       ) : (
-                        <>Sin aportación</>
+                        <>
+                          <AlertCircle size={14} /> Sin aportar
+                        </>
                       )}
                     </button>
                   ) : (
@@ -96,7 +109,7 @@ export function ContributionsList({
                           <CheckCircle size={14} /> {formatCurrency(amountPaid)}
                         </>
                       ) : (
-                        <>Sin aportación</>
+                        "Sin aportación"
                       )}
                     </div>
                   )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Edit, MapPin, Users } from "lucide-react";
+import { Edit, MapPin, Users, Plus, Trash2, Camera } from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../../hooks/useClubData";
 import {
@@ -26,17 +26,24 @@ export default function HeroSection({
   setLightboxData,
 }: HeroSectionProps) {
   const [isEditingClubInfo, setIsEditingClubInfo] = useState(false);
-  const [editClubName, setEditClubName] = useState(clubInfo.name);
-  const [editClubDesc, setEditClubDesc] = useState(clubInfo.description);
-  const [editClubImages, setEditClubImages] = useState(
-    clubInfo.heroImages?.join("\n") || "",
+  const [editClubName, setEditClubName] = useState(clubInfo.name || "");
+  const [editClubDesc, setEditClubDesc] = useState(clubInfo.description || "");
+
+  // 👇 MEJORA 2: Ubicación dinámica (con fallback a Guaymas por defecto)
+  const [editLocation, setEditLocation] = useState(
+    clubInfo.location || "Guaymas, Sonora",
   );
+
+  // 👇 MEJORA 1: Arreglo dinámico en lugar de un texto gigante
+  const [editHeroImages, setEditHeroImages] = useState<string[]>(
+    clubInfo.heroImages?.length > 0 ? clubInfo.heroImages : [""],
+  );
+
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
 
   const heroTouchStartX = useRef<number | null>(null);
   const heroTouchEndX = useRef<number | null>(null);
 
-  // ── NUEVO: Calculamos solo los jugadores activos para el contador ──
   const activePlayersCount = players
     ? players.filter((p: any) => p.active !== false).length
     : 0;
@@ -92,21 +99,39 @@ export default function HeroSection({
     });
   };
 
+  // ── GESTIÓN DE LA LISTA DE IMÁGENES ──
+  const handleUpdateImage = (index: number, value: string) => {
+    const newImages = [...editHeroImages];
+    newImages[index] = value;
+    setEditHeroImages(newImages);
+  };
+
+  const handleAddImageField = () => {
+    setEditHeroImages([...editHeroImages, ""]);
+  };
+
+  const handleRemoveImageField = (index: number) => {
+    setEditHeroImages(editHeroImages.filter((_, i) => i !== index));
+  };
+
   const handleSaveClubInfo = async (e: React.FormEvent) => {
     e.preventDefault();
-    const imagesArray = editClubImages
-      .split("\n")
-      .map((url: string) => url.trim())
-      .filter((url: string) => url !== "");
+
+    // Filtramos los inputs vacíos
+    const validImages = editHeroImages
+      .map((url) => url.trim())
+      .filter((url) => url !== "");
+
     await setDoc(
       doc(db, "settings", "club_info"),
       {
         ...clubInfo,
         name: editClubName.trim(),
         description: editClubDesc.trim(),
+        location: editLocation.trim(), // Guardamos la ubicación
         heroImages:
-          imagesArray.length > 0
-            ? imagesArray
+          validImages.length > 0
+            ? validImages
             : [
                 "https://images.unsplash.com/photo-1511886929837-354d827aae26?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
               ],
@@ -131,9 +156,12 @@ export default function HeroSection({
       {perms.canEditPortada && !isEditingClubInfo && (
         <button
           onClick={() => {
-            setEditClubName(clubInfo.name);
-            setEditClubDesc(clubInfo.description);
-            setEditClubImages(clubInfo.heroImages?.join("\n") || "");
+            setEditClubName(clubInfo.name || "");
+            setEditClubDesc(clubInfo.description || "");
+            setEditLocation(clubInfo.location || "Guaymas, Sonora");
+            setEditHeroImages(
+              clubInfo.heroImages?.length > 0 ? clubInfo.heroImages : [""],
+            );
             setIsEditingClubInfo(true);
           }}
           style={{
@@ -165,31 +193,215 @@ export default function HeroSection({
             onSubmit={handleSaveClubInfo}
             style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
           >
-            <FormInput
-              type="text"
-              required
-              value={editClubName}
-              onChange={(e) => setEditClubName(e.target.value)}
-              placeholder="Nombre del Club"
-            />
-            <FormTextarea
-              required
-              value={editClubDesc}
-              onChange={(e) => setEditClubDesc(e.target.value)}
-              placeholder="Descripción breve"
-              rows={2}
-            />
-            <FormTextarea
-              required
-              value={editClubImages}
-              onChange={(e) => setEditClubImages(e.target.value)}
-              placeholder="Links de imágenes (una por línea)"
-              rows={4}
-              style={{ whiteSpace: "pre" }}
-            />
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.4rem",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: "700",
+                  color: C.navy900,
+                }}
+              >
+                Nombre del Club
+              </label>
+              <FormInput
+                type="text"
+                required
+                value={editClubName}
+                onChange={(e) => setEditClubName(e.target.value)}
+                placeholder="Joga Bonito FC"
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.4rem",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: "700",
+                  color: C.navy900,
+                }}
+              >
+                Sede o Ciudad
+              </label>
+              <FormInput
+                type="text"
+                required
+                value={editLocation}
+                onChange={(e) => setEditLocation(e.target.value)}
+                placeholder="Ej. Guaymas, Sonora"
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.4rem",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: "700",
+                  color: C.navy900,
+                }}
+              >
+                Descripción (Lema o historia breve)
+              </label>
+              <FormTextarea
+                required
+                value={editClubDesc}
+                onChange={(e) => setEditClubDesc(e.target.value)}
+                placeholder="Descripción breve"
+                rows={2}
+              />
+            </div>
+
+            {/* 👇 MEJORA 1: Listado dinámico de fotos tipo Galería 👇 */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+                marginTop: "0.5rem",
+              }}
+            >
+              <label
+                style={{
+                  fontSize: "0.8125rem",
+                  fontWeight: "700",
+                  color: C.navy900,
+                }}
+              >
+                Imágenes del Carrusel
+              </label>
+
+              {editHeroImages.map((url, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: "flex",
+                    gap: "0.5rem",
+                    alignItems: "center",
+                    backgroundColor: C.white,
+                    padding: "0.5rem",
+                    borderRadius: RADIUS.md,
+                    border: `1px solid ${C.gray200}`,
+                  }}
+                >
+                  {/* Vista previa miniatura inteligente */}
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "36px",
+                      height: "36px",
+                      backgroundColor: C.gray50,
+                      borderRadius: RADIUS.sm,
+                      color: C.gray300,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      overflow: "hidden",
+                      flexShrink: 0,
+                      border: `1px solid ${C.gray200}`,
+                    }}
+                  >
+                    <Camera
+                      size={16}
+                      style={{ position: "absolute", zIndex: 0 }}
+                    />
+                    {url && (
+                      <img
+                        src={url}
+                        alt="Preview"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                          position: "relative",
+                          zIndex: 1,
+                          backgroundColor: C.white,
+                        }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                        onLoad={(e) => {
+                          e.currentTarget.style.display = "block";
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  <input
+                    type="url"
+                    value={url}
+                    onChange={(e) => handleUpdateImage(index, e.target.value)}
+                    placeholder="Link de la imagen..."
+                    required={index === 0} // La primera es obligatoria
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      outline: "none",
+                      fontSize: "0.8125rem",
+                      color: C.navy900,
+                      backgroundColor: "transparent",
+                    }}
+                  />
+
+                  {editHeroImages.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveImageField(index)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: C.red,
+                        cursor: "pointer",
+                        padding: "0.25rem",
+                      }}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              <button
+                type="button"
+                onClick={handleAddImageField}
+                style={{
+                  background: "none",
+                  border: `1px dashed ${C.gray300}`,
+                  borderRadius: RADIUS.md,
+                  padding: "0.5rem",
+                  color: C.gray600,
+                  fontWeight: "600",
+                  fontSize: "0.75rem",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: "0.4rem",
+                  alignItems: "center",
+                }}
+              >
+                <Plus size={14} /> Añadir imagen al carrusel
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
               <PrimaryButton type="submit" style={{ flex: 1 }}>
-                Guardar
+                Guardar Portada
               </PrimaryButton>
               <SecondaryButton
                 type="button"
@@ -263,19 +475,27 @@ export default function HeroSection({
                   gap: "0.4rem",
                   zIndex: 20,
                 }}
+                onClick={(e) => e.stopPropagation()} // Para que no abra el modal si tocan cerca
               >
                 {clubInfo.heroImages.map((_: any, idx: number) => (
                   <div
                     key={idx}
+                    // 👇 MEJORA 3: Puntitos clickables
+                    onClick={(e) => {
+                      e.stopPropagation(); // Evita abrir la imagen en grande
+                      setCurrentHeroIndex(idx);
+                    }}
                     style={{
-                      width: "8px",
-                      height: "8px",
+                      width: "12px", // Un poco más grandes para que sean fáciles de tocar
+                      height: "12px",
                       borderRadius: "50%",
                       backgroundColor:
                         idx === currentHeroIndex
                           ? C.white
                           : "rgba(255,255,255,0.4)",
-                      transition: "background-color 0.5s ease",
+                      transition: "background-color 0.3s ease",
+                      cursor: "pointer", // Cursor de manita
+                      boxShadow: "0 2px 4px rgba(0,0,0,0.5)",
                     }}
                   />
                 ))}
@@ -341,10 +561,9 @@ export default function HeroSection({
                   textTransform: "uppercase",
                 }}
               >
-                <MapPin size={12} /> Guaymas, Sonora
+                <MapPin size={12} /> {clubInfo.location || "Guaymas, Sonora"}
               </span>
 
-              {/* 👇 NUEVO: Renderizado con la variable activePlayersCount */}
               {activePlayersCount > 0 && (
                 <span
                   style={{
