@@ -154,7 +154,7 @@ export default function PlayerForm({
               onChange={(e) => setIsDT(e.target.checked)}
               style={{ width: "1rem", height: "1rem", cursor: "pointer" }}
             />
-            👔 Es el Director Técnico
+            DT
           </label>
 
           {/* CHECKBOX PARA ESTADO ACTIVO/INACTIVO */}
@@ -181,7 +181,7 @@ export default function PlayerForm({
                 cursor: "pointer",
               }}
             />
-            ✅ Activo en el Club
+            Activo
           </label>
         </div>
 

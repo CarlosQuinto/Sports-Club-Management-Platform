@@ -1,45 +1,80 @@
 import React, { useState } from "react";
 import { useFinancesData } from "../components/finances/hooks/useFinancesData";
 import { SummaryCards } from "../components/finances/SummaryCards";
-import { ContributionsList } from "../components/finances/ContributionsList";
+import { GoalsList } from "../components/finances/GoalsList";
 import { TransactionForm } from "../components/finances/TransactionForm";
 import { TransactionHistory } from "../components/finances/TransactionHistory";
+import { FinancesProps, Transaction } from "../components/finances/types";
 
 export default function Finances({
   transactions,
   players,
   perms,
 }: FinancesProps) {
-  const [date] = useState(new Date().toISOString().split("T")[0]); // Solo para aportaciones sin fecha
+  const [date] = useState(new Date().toISOString().split("T")[0]);
+
   const {
     allTransactions,
+    activePlayers,
     totalIncome,
     totalExpense,
     balance,
-    aportaron,
-    recaudado,
-    faltante,
+    goals,
     addTransaction,
-    updatePlayerPayment,
     deleteTransaction,
+    addGoal,
+    completeGoal,
+    deleteGoal,
+    updateGoalContribution,
   } = useFinancesData(transactions, players, date);
 
-  const handleUpdatePayment = (
-    id: string,
+  // ── CREACIÓN DE META CON CÁLCULO DE CUOTA ──
+  const handleAddGoal = () => {
+    const title = window.prompt(
+      "Nombre de la nueva meta:\n(Ej. Uniformes Nuevos, Arbitraje Liguilla)",
+    );
+    if (!title?.trim()) return;
+
+    const amountStr = window.prompt(
+      `¿Cuánto dinero se necesita en total para "${title}"?\n(Ej. 3000)`,
+    );
+    if (!amountStr) return;
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) return alert("Monto total inválido.");
+
+    // Cálculo sugerido
+    const suggestedQuota = Math.ceil(amount / activePlayers.length);
+    const quotaStr = window.prompt(
+      `Hay ${activePlayers.length} jugadores activos.\n¿De a cuánto nos tocaría a cada uno?\n\n(Sugerencia basada en el total: $${suggestedQuota})`,
+      suggestedQuota.toString(),
+    );
+    if (!quotaStr) return;
+    const quotaPerPlayer = parseFloat(quotaStr) || suggestedQuota;
+
+    addGoal(title, amount, quotaPerPlayer);
+  };
+
+  // ── REGISTRO DE APORTACIÓN ──
+  const handleUpdateContribution = (
+    goalId: string,
+    playerId: string,
     currentAmount: number,
     playerName: string,
+    goalTitle: string,
+    suggestedQuota: number, // 👈 Recibimos la cuota sugerida para mostrarla
   ) => {
     const input = window.prompt(
-      `¿Cuánto ha aportado de forma voluntaria ${playerName} en total?\n\n(Aportación sugerida: $200)`,
+      `¿Cuánto ha aportado ${playerName} para "${goalTitle}"?\n\n(Cuota acordada: $${suggestedQuota} c/u)`,
       (currentAmount || 0).toString(),
     );
-    if (input === null) return;
+    if (input === null || input.trim() === "") return;
+
     const newAmount = parseFloat(input);
     if (isNaN(newAmount) || newAmount < 0) {
-      alert("Por favor ingresa una cantidad válida.");
+      alert("Por favor ingresa una cantidad numérica válida.");
       return;
     }
-    updatePlayerPayment(id, newAmount);
+    updateGoalContribution(goalId, playerId, newAmount);
   };
 
   const handleSubmitTransaction = (data: Omit<Transaction, "id">) => {
@@ -59,17 +94,16 @@ export default function Finances({
         totalIncome={totalIncome}
         totalExpense={totalExpense}
         balance={balance}
-        aportaron={aportaron}
-        recaudado={recaudado}
-        faltante={faltante}
-        playersCount={players.length}
-        showFaltante={perms.canEditFinanzas}
       />
 
-      <ContributionsList
-        players={players}
+      <GoalsList
+        goals={goals}
+        players={activePlayers}
         canEdit={perms.canEditFinanzas}
-        onUpdatePayment={handleUpdatePayment}
+        onAddGoal={handleAddGoal}
+        onCompleteGoal={completeGoal}
+        onDeleteGoal={deleteGoal}
+        onUpdateContribution={handleUpdateContribution}
       />
 
       {perms.canEditFinanzas && (

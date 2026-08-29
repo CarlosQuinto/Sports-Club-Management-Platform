@@ -74,12 +74,15 @@ export function useClubData() {
     const unsubTx = onSnapshot(
       collection(db, "transactions"),
       (snapshot) => {
-        const txs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+        // 👇 Añadido: as FirestoreDoc
+        const txs = snapshot.docs.map(
+          (doc) => ({ id: doc.id, ...doc.data() }) as FirestoreDoc,
+        );
         txs.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         );
         setTransactions(txs);
-        setLoading(false); // Consider moving this or tracking loading state per collection
+        setLoading(false);
       },
       handleSnapshotError,
     );
@@ -87,10 +90,14 @@ export function useClubData() {
     const unsubPlayers = onSnapshot(
       collection(db, "players"),
       (snapshot) => {
-        const plys = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        // 👇 Añadido: as FirestoreDoc
+        const plys = snapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as FirestoreDoc,
+        );
         plys.sort((a, b) => a.name.localeCompare(b.name));
         setPlayers(plys);
       },
@@ -100,10 +107,14 @@ export function useClubData() {
     const unsubInventory = onSnapshot(
       collection(db, "inventory"),
       (snapshot) => {
-        const items = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        // 👇 Añadido: as FirestoreDoc
+        const items = snapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as FirestoreDoc,
+        );
         items.sort((a, b) => a.name.localeCompare(b.name));
         setInventory(items);
       },
@@ -113,10 +124,14 @@ export function useClubData() {
     const unsubEvents = onSnapshot(
       collection(db, "events"),
       (snapshot) => {
-        const evts = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        // 👇 Añadido: as FirestoreDoc
+        const evts = snapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as FirestoreDoc,
+        );
         evts.sort(
           (a, b) =>
             new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime(),
@@ -129,10 +144,14 @@ export function useClubData() {
     const unsubGallery = onSnapshot(
       collection(db, "gallery"),
       (snapshot) => {
-        const imgs = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
+        // 👇 Añadido: as FirestoreDoc
+        const imgs = snapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as FirestoreDoc,
+        );
         imgs.sort(
           (a, b) =>
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),

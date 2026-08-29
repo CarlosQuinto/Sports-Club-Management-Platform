@@ -22,8 +22,13 @@ export default function Home({
     caption?: string;
   } | null>(null);
 
+  // 👇 NUEVO: Filtramos a los jugadores activos para no celebrar cumpleaños de exjugadores
+  const activePlayers = useMemo(() => {
+    return players.filter((p: any) => p.active !== false);
+  }, [players]);
+
   // ── CÁLCULO DE ESTADÍSTICAS PARA EL MURO DE LA FAMA ──
-  // Lo mantenemos aquí para no recargar el componente hijo y solo pasarle los datos finales
+  // (Las leyendas inactivas SÍ entran a este cálculo para respetar su historia)
   const clubPlayerStats = useMemo(() => {
     return players.map((p: any) => {
       let goals = 0,
@@ -107,7 +112,8 @@ export default function Home({
         animation: "fadeIn 0.3s ease",
       }}
     >
-      <BirthdayBanner players={players} />
+      {/* 👇 PASAMOS SOLO LOS ACTIVOS AL BANNER DE CUMPLEAÑOS 👇 */}
+      <BirthdayBanner players={activePlayers} />
 
       <HeroSection
         clubInfo={clubInfo}
@@ -116,12 +122,12 @@ export default function Home({
         setLightboxData={setLightboxData}
       />
 
+      {/* 👇 QUITAMOS EL setActiveTab QUE YA NO SE USA 👇 */}
       <HallOfFame
         topScorers={topScorers}
         topAssists={topAssists}
         topMVPs={topMVPs}
         topIronMen={topIronMen}
-        setActiveTab={setActiveTab}
       />
 
       <GallerySection
