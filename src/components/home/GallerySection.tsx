@@ -492,7 +492,7 @@ export default function GallerySection({
                       />
                       <input
                         type="text"
-                        placeholder="Leyenda o descripción (Opcional)"
+                        placeholder="Descripción (Opcional)"
                         value={photo.caption}
                         onChange={(e) =>
                           updateModalPhoto(idx, "caption", e.target.value)
@@ -645,7 +645,7 @@ export default function GallerySection({
                 <div style={{ display: "flex", gap: "0.5rem" }}>
                   <FormInput
                     type="text"
-                    placeholder="Leyenda o descripción (Opcional)"
+                    placeholder="Descripción (Opcional)"
                     value={newCaption}
                     onChange={(e) => setNewCaption(e.target.value)}
                     style={{ flex: 1 }}

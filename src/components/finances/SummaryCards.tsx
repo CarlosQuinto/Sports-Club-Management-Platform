@@ -27,40 +27,36 @@ export function SummaryCards({
       >
         Estado de Cuenta General
       </h2>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(100px, 1fr))",
-          gap: "0.75rem",
-        }}
-      >
-        {/* ✅ Envoltura para Balance */}
-        <div style={{ padding: "0.75rem", fontSize: "0.75rem" }}>
-          <KPICard
-            label="Balance"
-            value={formatCurrency(balance)}
-            accent={balance >= 0 ? "navy" : "red"}
-            icon={<Wallet size={20} color={C.navy900} />}
-          />
-        </div>
 
-        {/* ✅ Envoltura para Ingresos */}
-        <div style={{ padding: "0.75rem", fontSize: "0.75rem" }}>
+      {/* Contenedor principal en columna */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {/* 1. TARJETA PRINCIPAL: Balance (Ocupa el 100% del ancho) */}
+        <KPICard
+          label="Balance Total"
+          value={formatCurrency(balance)}
+          accent={balance >= 0 ? "navy" : "red"}
+          icon={<Wallet size={20} color={C.navy900} />}
+        />
+
+        {/* 2. SUB-TARJETAS: Ingresos y Gastos (50% y 50%) */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "0.5rem",
+          }}
+        >
           <KPICard
             label="Ingresos"
             value={formatCurrency(totalIncome)}
             accent="green"
-            icon={<TrendingUp size={20} color={C.green} />}
+            icon={<TrendingUp size={16} color={C.green} />}
           />
-        </div>
-
-        {/* ✅ Envoltura para Gastos */}
-        <div style={{ padding: "0.75rem", fontSize: "0.75rem" }}>
           <KPICard
             label="Gastos"
             value={formatCurrency(totalExpense)}
             accent="red"
-            icon={<TrendingDown size={20} color={C.red} />}
+            icon={<TrendingDown size={16} color={C.red} />}
           />
         </div>
       </div>

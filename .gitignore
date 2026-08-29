@@ -8,3 +8,4 @@ dist-ssr/
 .firebase/
 
 .agents/
+serviceAccountKey.json

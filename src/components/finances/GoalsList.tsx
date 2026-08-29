@@ -96,10 +96,10 @@ export function GoalsList({
               100,
             );
             const isCompleted = goal.status === "completed";
-            const isExpanded = expanded[goal.id] ?? !isCompleted;
+            // ✅ CAMBIO: ahora inicia colapsado siempre (false)
+            const isExpanded = expanded[goal.id] ?? false;
             const quota = goal.quotaPerPlayer || 0;
 
-            // 👇 SEPARAMOS A LOS JUGADORES EN DOS LISTAS DINÁMICAS 👇
             const paidPlayers = players
               .filter((p) => (goal.contributions?.[p.id] || 0) > 0)
               .sort((a, b) => a.name.localeCompare(b.name));
@@ -157,7 +157,6 @@ export function GoalsList({
                     </div>
                   </div>
 
-                  {/* Etiqueta de la cuota */}
                   <p
                     style={{
                       margin: "0 0 0.75rem 0",
@@ -275,7 +274,6 @@ export function GoalsList({
                       </div>
                     )}
 
-                    {/* ── SECCIÓN 1: YA APORTARON ── */}
                     {paidPlayers.length > 0 && (
                       <div
                         style={{
@@ -365,7 +363,6 @@ export function GoalsList({
                       </div>
                     )}
 
-                    {/* ── SECCIÓN 2: FALTAN POR APORTAR ── */}
                     {pendingPlayers.length > 0 && (
                       <div>
                         <h4

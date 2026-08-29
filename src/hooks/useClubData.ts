@@ -9,6 +9,7 @@ interface ClubInfo {
   description: string;
   heroImages: string[];
   defaultLineups: Record<string, any>;
+  logoUrl?: string; // 👈 ¡AÑADE ESTA LÍNEA! (El '?' significa que es opcional)
 }
 
 // Add more specific types as your schema solidifies
@@ -47,6 +48,7 @@ export function useClubData() {
   const [inventory, setInventory] = useState<FirestoreDoc[]>([]);
   const [events, setEvents] = useState<FirestoreDoc[]>([]);
   const [gallery, setGallery] = useState<FirestoreDoc[]>([]);
+  const [goals, setGoals] = useState<FirestoreDoc[]>([]); // 👈 AÑADIDO: Estado para metas
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -74,7 +76,6 @@ export function useClubData() {
     const unsubTx = onSnapshot(
       collection(db, "transactions"),
       (snapshot) => {
-        // 👇 Añadido: as FirestoreDoc
         const txs = snapshot.docs.map(
           (doc) => ({ id: doc.id, ...doc.data() }) as FirestoreDoc,
         );
@@ -90,7 +91,6 @@ export function useClubData() {
     const unsubPlayers = onSnapshot(
       collection(db, "players"),
       (snapshot) => {
-        // 👇 Añadido: as FirestoreDoc
         const plys = snapshot.docs.map(
           (doc) =>
             ({
@@ -107,7 +107,6 @@ export function useClubData() {
     const unsubInventory = onSnapshot(
       collection(db, "inventory"),
       (snapshot) => {
-        // 👇 Añadido: as FirestoreDoc
         const items = snapshot.docs.map(
           (doc) =>
             ({
@@ -124,7 +123,6 @@ export function useClubData() {
     const unsubEvents = onSnapshot(
       collection(db, "events"),
       (snapshot) => {
-        // 👇 Añadido: as FirestoreDoc
         const evts = snapshot.docs.map(
           (doc) =>
             ({
@@ -144,7 +142,6 @@ export function useClubData() {
     const unsubGallery = onSnapshot(
       collection(db, "gallery"),
       (snapshot) => {
-        // 👇 Añadido: as FirestoreDoc
         const imgs = snapshot.docs.map(
           (doc) =>
             ({
@@ -161,6 +158,27 @@ export function useClubData() {
       handleSnapshotError,
     );
 
+    // 👇 AÑADIDO: Suscripción a la colección 'goals' en Firebase 👇
+    const unsubGoals = onSnapshot(
+      collection(db, "goals"),
+      (snapshot) => {
+        const fetchedGoals = snapshot.docs.map(
+          (doc) =>
+            ({
+              id: doc.id,
+              ...doc.data(),
+            }) as FirestoreDoc,
+        );
+        // Ordenamos las metas más recientes primero
+        fetchedGoals.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        setGoals(fetchedGoals);
+      },
+      handleSnapshotError,
+    );
+
     return () => {
       unsubSettings();
       unsubTx();
@@ -168,6 +186,7 @@ export function useClubData() {
       unsubInventory();
       unsubEvents();
       unsubGallery();
+      unsubGoals(); // 👈 Limpiamos el listener al desmontar
     };
   }, []);
 
@@ -178,6 +197,7 @@ export function useClubData() {
     inventory,
     events,
     gallery,
+    goals, // 👈 AÑADIDO: Exportamos 'goals' para que App.tsx lo pueda usar
     loading,
   };
 }

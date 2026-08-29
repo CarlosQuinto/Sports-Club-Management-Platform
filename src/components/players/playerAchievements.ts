@@ -1,7 +1,10 @@
+import { Achievement } from "./TrophyCase"; // Asegúrate de tener la ruta correcta
+
 export function generatePlayerAchievements(
   selectedPlayer: any,
   pStats: any,
   safeEvents: any[],
+  goals: any[] = [], // 👈 Recibimos las metas directamente
 ): Achievement[] {
   if (!selectedPlayer || !pStats) return [];
 
@@ -24,9 +27,25 @@ export function generatePlayerAchievements(
     }
   });
 
-  const amountPaid = selectedPlayer.amount_paid || 0;
+  // 👇 CÁLCULO DIRECTO DESDE LA COLECCIÓN DE GOALS 👇
+  let totalFromGoals = 0;
 
-  // ─── ARREGLO BASE (LOGROS GENERALES) ───
+  // Recorremos todas las metas...
+  goals.forEach((goal: any) => {
+    // Si la meta tiene el mapa de contributions y el ID de nuestro jugador está ahí...
+    if (goal.contributions && goal.contributions[selectedPlayer.id]) {
+      // Sumamos el valor aportado
+      totalFromGoals += Number(goal.contributions[selectedPlayer.id]);
+    }
+  });
+
+  // Mantenemos la compatibilidad con el sistema viejo (por si había pagos antes de las metas)
+  const legacyPaid = Number(selectedPlayer.amount_paid) || 0;
+
+  // Total real aportado por el jugador
+  const amountPaid = totalFromGoals + legacyPaid;
+
+  // ── DEFINICIÓN DE LOGROS ──
   let achievements: Achievement[] = [
     // Goles
     {

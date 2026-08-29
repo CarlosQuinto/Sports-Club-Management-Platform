@@ -32,7 +32,8 @@ import PlayerRow from "../components/players/PlayerRow";
 import PlayerModal from "../components/players/PlayerModal";
 import { usePlayerStats } from "../hooks/usePlayerStats";
 
-export default function Players({ players, events, perms }: any) {
+// 👇 AÑADIDO: Recibimos 'goals' por los props
+export default function Players({ players, events, perms, goals }: any) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
   const [playerNumber, setPlayerNumber] = useState("");
@@ -114,10 +115,12 @@ export default function Players({ players, events, perms }: any) {
       await deleteDoc(doc(db, "players", id));
   };
 
+  // 👇 AÑADIDO: Pasamos 'goals' al hook
   const { clubPlayerStats, selectedPlayerAchievements } = usePlayerStats(
     players,
     events,
     selectedPlayer,
+    goals,
   );
 
   const positionCounts = useMemo(() => {
@@ -216,7 +219,7 @@ export default function Players({ players, events, perms }: any) {
         />
       )}
 
-      {/* 👇 SOLUCIÓN: Título en string, ícono nativo 👇 */}
+      {/* 👇 Título en string, ícono nativo 👇 */}
       <SectionCard title="Plantilla Oficial" icon={<Trophy size={16} />}>
         <div
           style={{

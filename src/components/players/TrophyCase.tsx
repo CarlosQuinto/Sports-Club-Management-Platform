@@ -7,7 +7,7 @@ export interface Achievement {
   id: number;
   title: string;
   desc: string;
-  icon: React.ReactNode;
+  icon: string;
   unlocked: boolean;
 }
 

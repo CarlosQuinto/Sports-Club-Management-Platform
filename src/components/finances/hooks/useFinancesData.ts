@@ -150,10 +150,29 @@ export function useFinancesData(
   ) => {
     const goal = goals.find((g) => g.id === goalId);
     if (!goal) return;
+
+    // Calculamos la diferencia para sumarla al histórico del jugador
+    const oldAmount = goal.contributions[playerId] || 0;
+    const diff = amount - oldAmount;
+
+    // 1. Actualizamos la Meta (Finanzas)
     const newContributions = { ...goal.contributions, [playerId]: amount };
     await updateDoc(doc(db, "goals", goalId), {
       contributions: newContributions,
     });
+
+    // 2. Actualizamos el récord histórico del Jugador silenciosamente
+    const player = players.find((p) => p.id === playerId);
+    if (player) {
+      const currentTotal =
+        player.lifetime_contributions !== undefined
+          ? player.lifetime_contributions
+          : player.amount_paid || 0;
+
+      await updateDoc(doc(db, "players", playerId), {
+        lifetime_contributions: currentTotal + diff,
+      });
+    }
   };
 
   return {

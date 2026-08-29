@@ -30,6 +30,7 @@ export default function App() {
     inventory,
     events,
     gallery,
+    goals, // 👈 AÑADIDO: Extraemos las metas (goals)
     loading,
   } = useClubData();
   const [activeTab, setActiveTab] = useState<
@@ -856,12 +857,17 @@ export default function App() {
                     />
                   )}
                   {item.key === "jugadores" && (
-                    <Players players={players} events={events} perms={perms} />
+                    <Players
+                      players={players}
+                      events={events}
+                      perms={perms}
+                      goals={goals} // 👈 AÑADIDO: Pasamos las metas a la pantalla de jugadores
+                    />
                   )}
                   {item.key === "finanzas" && (
                     <Finances
-                      transactions={transactions}
-                      players={players}
+                      transactions={transactions as any} // 👈 Agregamos "as any"
+                      players={players as any} // 👈 Agregamos "as any"
                       perms={perms}
                     />
                   )}

@@ -5,6 +5,7 @@ export function usePlayerStats(
   players: any[],
   events: any[],
   selectedPlayer: any | null,
+  goals: any[] = [], // 👈 NUEVO: Recibimos goals en el hook
 ) {
   // Asegurarnos de que events sea un array válido
   const safeEvents = Array.isArray(events) ? events : [];
@@ -22,7 +23,7 @@ export function usePlayerStats(
       let yellowCards = 0,
         redCards = 0;
       let matchesManaged = 0,
-        winsManaged = 0; // NUEVO: matchesManaged y winsManaged
+        winsManaged = 0;
 
       safeEvents
         .filter(
@@ -33,21 +34,16 @@ export function usePlayerStats(
             (att: string) => att === p.id || att === p.name,
           );
 
-          // ─── ENTRENAMIENTOS ───
           if (ev.eventType === "Entrenamiento" && attended) {
             trainingsAttended++;
           }
 
-          // ─── PARTIDOS ───
           if (ev.eventType === "Partido") {
             if (attended) matchesAttended++;
 
-            // ─── LÓGICA DEL DIRECTOR TÉCNICO ───
-            // Ahora validamos que el jugador actual sea el manager registrado en este partido
             if (ev.manager === p.id || ev.manager === p.name) {
               matchesManaged++;
 
-              // Determinamos los goles a favor
               const golesAFavor =
                 ev.scoreOurs !== undefined
                   ? ev.scoreOurs
@@ -55,22 +51,18 @@ export function usePlayerStats(
                     ? ev.stats.filter((s: any) => s.scorer).length
                     : 0;
 
-              // Determinamos los goles en contra
               const golesEnContra = ev.scoreTheirs || 0;
 
-              // Si metimos más goles, ¡es una victoria!
               if (golesAFavor > golesEnContra) {
                 winsManaged++;
               }
             }
 
-            // Goles y asistencias como jugador
             ev.stats?.forEach((s: any) => {
               if (s.scorer === p.id || s.scorer === p.name) goals++;
               if (s.assist === p.id || s.assist === p.name) assists++;
             });
 
-            // Porteros
             if (
               ev.goalkeepers &&
               Array.isArray(ev.goalkeepers) &&
@@ -90,7 +82,6 @@ export function usePlayerStats(
               }
             }
 
-            // MVP y tarjetas
             if (ev.mvp === p.id || ev.mvp === p.name) mvps++;
             yellowCards += (ev.yellowCards || []).filter(
               (id: string) => id === p.id || id === p.name,
@@ -112,8 +103,8 @@ export function usePlayerStats(
         mvps,
         yellowCards,
         redCards,
-        matchesManaged, // SE EXPORTA
-        winsManaged, // SE EXPORTA
+        matchesManaged,
+        winsManaged,
         totalAttendance: matchesAttended + trainingsAttended,
       };
     });
@@ -123,8 +114,15 @@ export function usePlayerStats(
   const selectedPlayerAchievements = useMemo(() => {
     if (!selectedPlayer) return [];
     const pStats = clubPlayerStats.find((p: any) => p.id === selectedPlayer.id);
-    return generatePlayerAchievements(selectedPlayer, pStats, safeEvents);
-  }, [selectedPlayer, clubPlayerStats, safeEvents]);
+
+    // 👇 AQUÍ LE PASAMOS GOALS A LA FUNCIÓN 👇
+    return generatePlayerAchievements(
+      selectedPlayer,
+      pStats,
+      safeEvents,
+      goals,
+    );
+  }, [selectedPlayer, clubPlayerStats, safeEvents, goals]); // 👈 Goals en dependencias
 
   return {
     clubPlayerStats,
