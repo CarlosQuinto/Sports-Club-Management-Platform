@@ -36,6 +36,11 @@ export default function HeroSection({
   const heroTouchStartX = useRef<number | null>(null);
   const heroTouchEndX = useRef<number | null>(null);
 
+  // ── NUEVO: Calculamos solo los jugadores activos para el contador ──
+  const activePlayersCount = players
+    ? players.filter((p: any) => p.active !== false).length
+    : 0;
+
   // ── AUTO ROTACIÓN DEL CARRUSEL DE PORTADA ──
   useEffect(() => {
     if (
@@ -339,7 +344,8 @@ export default function HeroSection({
                 <MapPin size={12} /> Guaymas, Sonora
               </span>
 
-              {players && players.length > 0 && (
+              {/* 👇 NUEVO: Renderizado con la variable activePlayersCount */}
+              {activePlayersCount > 0 && (
                 <span
                   style={{
                     backgroundColor: "rgba(16, 185, 129, 0.1)",
@@ -355,7 +361,7 @@ export default function HeroSection({
                     textTransform: "uppercase",
                   }}
                 >
-                  <Users size={12} /> {players.length} Activos
+                  <Users size={12} /> {activePlayersCount} Activos
                 </span>
               )}
             </div>
