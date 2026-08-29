@@ -440,6 +440,8 @@ export default function HallOfFame({
                     : cat.list.slice(0, LIMIT)
                   ).map((p: any) => {
                     const styles = getRankStyles(p.rank, cat.accent);
+                    const isActive = p.active !== false; // 👈 NUEVA VALIDACIÓN
+
                     return (
                       <div
                         key={p.id}
@@ -451,6 +453,8 @@ export default function HallOfFame({
                           borderRadius: RADIUS.md,
                           backgroundColor: styles.rowBg,
                           border: styles.rowBorder,
+                          opacity: isActive ? 1 : 0.6, // 👈 Atenuado si es baja
+                          transition: "opacity 0.2s ease",
                         }}
                       >
                         <div
@@ -473,7 +477,9 @@ export default function HallOfFame({
                         <img
                           src={
                             p.imageUrl ||
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=102a43&color=fff&size=50`
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                              p.name,
+                            )}&background=102a43&color=fff&size=50`
                           }
                           alt={p.name}
                           loading="lazy"
@@ -484,6 +490,7 @@ export default function HallOfFame({
                             borderRadius: "50%",
                             objectFit: "cover",
                             border: styles.avatarBorder,
+                            filter: isActive ? "none" : "grayscale(100%)", // 👈 B/N si es baja
                           }}
                         />
                         <div style={{ flex: 1 }}>
@@ -492,10 +499,27 @@ export default function HallOfFame({
                               margin: 0,
                               fontSize: styles.nameSize,
                               fontWeight: styles.nameWeight,
-                              color: C.navy900,
+                              color: isActive ? C.navy900 : C.gray600, // 👈 Gris oscuro si es baja
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "0.4rem",
                             }}
                           >
                             {p.name}
+                            {!isActive && (
+                              <span
+                                style={{
+                                  backgroundColor: "#ef4444",
+                                  color: "white",
+                                  fontSize: "0.55rem",
+                                  padding: "1px 4px",
+                                  borderRadius: "4px",
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                BAJA
+                              </span>
+                            )}
                           </p>
                           <p
                             style={{

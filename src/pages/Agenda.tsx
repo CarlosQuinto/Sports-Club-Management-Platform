@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { Trophy, Target, TrendingUp, TrendingDown } from "lucide-react";
 import {
   collection,
@@ -28,20 +28,19 @@ import ArbitrationModal from "../components/agenda/ArbitrationModal";
 import StatsModal from "../components/agenda/StatsModal";
 
 export default function Agenda({ events, players, clubInfo, perms }: any) {
-  // ── Estados del Formulario (se pasan al EventForm) ──
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [eventType, setEventType] = useState<"Partido" | "Entrenamiento">(
     "Partido",
   );
   const [eventTitle, setEventTitle] = useState("");
-  const [eventRoutine, setEventRoutine] = useState("");
+  // ✅ CAMBIO: Inicia como array
+  const [eventRoutine, setEventRoutine] = useState<any[]>([]);
   const [eventDate, setEventDate] = useState(
     new Date().toISOString().split("T")[0],
   );
   const [eventTime, setEventTime] = useState("20:00");
   const [eventLocation, setEventLocation] = useState("");
 
-  // ── Estados de la Interfaz ──
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(
     null,
   );
@@ -49,7 +48,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     null,
   );
 
-  // ── Estados de Modales ──
   const [attendanceModalEvent, setAttendanceModalEvent] = useState<any | null>(
     null,
   );
@@ -65,19 +63,16 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     caption?: string;
   } | null>(null);
 
-  // ── Permisos ──
   const canEditArbitration = perms?.canEditAgenda || perms?.canEditFinanzas;
-
-  // ── CÁLCULOS (DESDE EL HOOK) ──
   const { statsClub, nextEvents, pastEvents } = useAgendaData(events);
 
-  // ── FUNCIONES GLOBALES DE EVENTOS ──
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     const data = {
       eventType,
       title: eventTitle,
-      routine: eventType === "Entrenamiento" ? eventRoutine.trim() : "",
+      // ✅ CAMBIO: Guardamos el array, no un string
+      routine: eventType === "Entrenamiento" ? eventRoutine : [],
       eventDate,
       eventTime,
       location: eventLocation || "Por definir",
@@ -94,13 +89,12 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     }
     setEventTitle("");
     setEventLocation("");
-    setEventRoutine("");
+    setEventRoutine([]); // ✅ CAMBIO: limpieza con array
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm("¿Seguro que deseas eliminar este evento?")) {
       await deleteDoc(doc(db, "events", id));
-      // 👇 Borramos también la transacción de arbitraje si existía
       await deleteDoc(doc(db, "transactions", `arb_${id}`)).catch(() => {});
     }
   };
@@ -123,7 +117,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     } else alert("Formato incorrecto.");
   };
 
-  // ── RENDER ──
   return (
     <div
       style={{
@@ -133,7 +126,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
         animation: "fadeIn 0.3s ease",
       }}
     >
-      {/* ── SCORE CARDS DEL CLUB ── */}
       <div
         style={{
           display: "grid",
@@ -165,7 +157,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
         />
       </div>
 
-      {/* ── FORMULARIO AGENDAR EVENTO ── */}
       <EventForm
         perms={perms}
         editingEventId={editingEventId}
@@ -186,11 +177,10 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
           setEditingEventId(null);
           setEventTitle("");
           setEventLocation("");
-          setEventRoutine("");
+          setEventRoutine([]); // ✅ CAMBIO: limpieza con array
         }}
       />
 
-      {/* ── PRÓXIMOS EVENTOS ── */}
       <div>
         <h2
           style={{
@@ -217,8 +207,22 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                 setEventType(ev.eventType);
                 setEventDate(ev.eventDate);
                 setEventTime(ev.eventTime);
-                setEventRoutine(ev.routine || "");
                 setEventLocation(ev.location);
+                // ✅ CAMBIO: migración de string viejo a array estructurado
+                if (typeof ev.routine === "string" && ev.routine) {
+                  setEventRoutine([
+                    {
+                      type: "phase",
+                      id: Date.now().toString(),
+                      title: "Rutina Guardada",
+                      exercises: [
+                        { id: "1", name: ev.routine, duration: "", link: "" },
+                      ],
+                    },
+                  ]);
+                } else {
+                  setEventRoutine(ev.routine || []);
+                }
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
               onOpenAttendance={() => setAttendanceModalEvent(ev)}
@@ -233,7 +237,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
         </div>
       </div>
 
-      {/* ── HISTORIAL COMPLETO ── */}
       <div>
         <h2
           style={{
@@ -281,21 +284,20 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                     }
                   }}
                   onUpdateScore={handleUpdateScore}
-                  onOpenStats={(ev) => setStatsModalEvent(ev)}
-                  onOpenArbitration={(ev) => setArbitrationModalEvent(ev)}
-                  onOpenLineup={(ev) => setLineupModalEvent(ev)}
-                  onOpenAlbum={(id) =>
+                  onOpenStats={(ev: any) => setStatsModalEvent(ev)}
+                  onOpenArbitration={(ev: any) => setArbitrationModalEvent(ev)}
+                  onOpenLineup={(ev: any) => setLineupModalEvent(ev)}
+                  onOpenAlbum={(id: string) =>
                     setAlbumModalEvent(events.find((e: any) => e.id === id))
                   }
-                  onImageClick={(data) => setLightboxData(data)}
-                  onOpenAttendance={(ev) => setAttendanceModalEvent(ev)}
+                  onImageClick={(data: any) => setLightboxData(data)}
+                  onOpenAttendance={(ev: any) => setAttendanceModalEvent(ev)}
                 />
               ))
           )}
         </div>
       </div>
 
-      {/* ── MODALES GLOBALES ── */}
       {attendanceModalEvent && (
         <AttendanceModal
           ev={attendanceModalEvent}
@@ -329,12 +331,11 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
               },
               { merge: true },
             );
-            alert("Alineación base guardada correctamente.");
+            alert("Alineación base guardada.");
           }}
         />
       )}
 
-      {/* ── MODALES MODULARIZADOS RECIENTEMENTE ── */}
       {albumModalEvent && (
         <AlbumModal
           ev={albumModalEvent}
@@ -349,7 +350,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
         />
       )}
 
-      {/* ── MODAL: PAGOS DE ARBITRAJE ── */}
       {arbitrationModalEvent && (
         <ArbitrationModal
           ev={arbitrationModalEvent}
@@ -357,32 +357,22 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
           canEditArbitration={canEditArbitration}
           onClose={() => setArbitrationModalEvent(null)}
           onSave={async (cleanPayments: any[]) => {
-            // 🔍 INSPECCIÓN VISUAL EN CONSOLA
-            console.log("1. cleanPayments recibido del modal:", cleanPayments);
-
-            // 1. Guardamos los pagos en el evento (esto sí funciona)
             await updateDoc(doc(db, "events", arbitrationModalEvent.id), {
               arbitrationPayments: cleanPayments,
             });
 
-            // 2. Calculamos el total (probemos varias propiedades por si acaso)
+            // ⬇️ MANTENEMOS EL CÁLCULO ORIGINAL (flexible)
             const totalArbitraje = cleanPayments.reduce(
               (sum, p) => sum + (Number(p.amount || p.monto || p.pagado) || 0),
               0,
             );
-            console.log("2. Total de arbitraje calculado:", totalArbitraje);
 
             const transRef = doc(
               db,
               "transactions",
               `arb_${arbitrationModalEvent.id}`,
             );
-
             if (totalArbitraje > 0) {
-              console.log(
-                "3. Intentando escribir en transactions con ID:",
-                `arb_${arbitrationModalEvent.id}`,
-              );
               await setDoc(
                 transRef,
                 {
@@ -395,16 +385,9 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                 },
                 { merge: true },
               );
-              console.log(
-                "4. ¡Escritura en transactions completada con éxito!",
-              );
             } else {
-              console.log(
-                "3. El total es 0 o menor, borrando transacción si existía...",
-              );
               await deleteDoc(transRef).catch(() => {});
             }
-
             setArbitrationModalEvent(null);
           }}
         />

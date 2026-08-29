@@ -19,6 +19,7 @@ import {
   formatFriendlyTime,
   getPlayerName,
 } from "../../utils/helpers";
+import RoutineDisplay from "./RoutineDisplay";
 
 interface HistoryCardProps {
   ev: any;
@@ -550,9 +551,9 @@ export default function HistoryCard({
             </div>
           )}
 
-          {/* RUTINA DEL ENTRENAMIENTO */}
+          {/* ─── RENDER DE LA RUTINA EN EL HISTORIAL ─── */}
           {ev.eventType === "Entrenamiento" && ev.routine && (
-            <CollapsibleRoutine routine={ev.routine} />
+            <RoutineDisplay routine={ev.routine} />
           )}
 
           {/* INFO DE LUGAR Y HORA Y ASISTENCIA */}

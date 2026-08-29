@@ -27,14 +27,12 @@ import {
 } from "../components/ui";
 import { CompareModal } from "../components/AppComponents";
 
-// ─── MÓDULOS EXTRAÍDOS ───
 import PlayerForm from "../components/players/PlayerForm";
 import PlayerRow from "../components/players/PlayerRow";
 import PlayerModal from "../components/players/PlayerModal";
 import { usePlayerStats } from "../hooks/usePlayerStats";
 
 export default function Players({ players, events, perms }: any) {
-  // Estados de Formulario
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
   const [playerNumber, setPlayerNumber] = useState("");
@@ -42,20 +40,18 @@ export default function Players({ players, events, perms }: any) {
   const [playerVariant, setPlayerVariant] = useState("");
   const [playerBirthDate, setPlayerBirthDate] = useState("");
   const [playerImageUrl, setPlayerImageUrl] = useState("");
-  const [isDT, setIsDT] = useState(false); // NUEVO ESTADO
+  const [isDT, setIsDT] = useState(false);
+  const [playerActive, setPlayerActive] = useState(true); // 👈 NUEVO ESTADO
 
-  // Estados de UI y Filtros
   const [selectedPlayer, setSelectedPlayer] = useState<any | null>(null);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [positionFilter, setPositionFilter] = useState("Todos");
 
-  // ─── LÓGICA DE PERMISOS GRANULARES ───
   const canEditAll = perms?.canEditJugadores;
   const isPressOnly =
     !canEditAll && (perms?.canEditPortada || perms?.canEditPrensa);
 
-  // ─── MANEJADORES DE ESTADO (CRUD) ───
   const handleSavePlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerName) return;
@@ -67,7 +63,8 @@ export default function Players({ players, events, perms }: any) {
       variant: playerVariant.trim(),
       birthDate: playerBirthDate || "",
       imageUrl: playerImageUrl.trim(),
-      isDT: isDT, // NUEVO CAMPO A LA BASE DE DATOS
+      isDT: isDT,
+      active: playerActive, // 👈 NUEVO CAMPO A LA BD
     };
 
     if (editingPlayerId) {
@@ -80,8 +77,6 @@ export default function Players({ players, events, perms }: any) {
         timestamp: new Date().toISOString(),
       });
     }
-
-    // Resetear formulario usando la función de cancelar
     handleCancelEdit();
   };
 
@@ -93,7 +88,8 @@ export default function Players({ players, events, perms }: any) {
     setPlayerVariant("");
     setPlayerBirthDate("");
     setPlayerImageUrl("");
-    setIsDT(false); // Resetear
+    setIsDT(false);
+    setPlayerActive(true); // 👈 Resetear a activo
   };
 
   const handleEdit = (p: any) => {
@@ -104,26 +100,30 @@ export default function Players({ players, events, perms }: any) {
     setPlayerVariant(p.variant || "");
     setPlayerBirthDate(p.birthDate || "");
     setPlayerImageUrl(p.imageUrl || "");
-    setIsDT(p.isDT || false); // Cargar si existe
+    setIsDT(p.isDT || false);
+    setPlayerActive(p.active !== false); // 👈 Cargar estado (por defecto true si no existe)
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("¿Seguro que deseas eliminar a este jugador?"))
+    if (
+      window.confirm(
+        "¿Seguro que deseas eliminar a este jugador? Perderás todo su historial.",
+      )
+    )
       await deleteDoc(doc(db, "players", id));
   };
 
-  // ─── CÁLCULOS Y ESTADÍSTICAS (AHORA DESDE EL HOOK) ───
   const { clubPlayerStats, selectedPlayerAchievements } = usePlayerStats(
     players,
     events,
     selectedPlayer,
   );
 
-  // ─── FILTROS Y CONTADORES DE UI ───
   const positionCounts = useMemo(() => {
     const counts = { Portero: 0, Defensa: 0, Medio: 0, Delantero: 0 };
     players.forEach((p: any) => {
+      if (p.active === false) return; // 👈 IGNORAR INACTIVOS DEL CONTEO
       if (counts[p.position as keyof typeof counts] !== undefined) {
         counts[p.position as keyof typeof counts]++;
       } else {
@@ -138,13 +138,20 @@ export default function Players({ players, events, perms }: any) {
       const matchesSearch =
         player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         player.number.toString().includes(searchTerm);
+
+      const isActive = player.active !== false;
+
+      // 👈 LÓGICA DE FILTRADO PARA INACTIVOS
+      if (positionFilter === "Inactivos") {
+        return matchesSearch && !isActive;
+      }
+
       const matchesPosition =
         positionFilter === "Todos" || player.position === positionFilter;
-      return matchesSearch && matchesPosition;
+      return matchesSearch && matchesPosition && isActive;
     });
   }, [players, searchTerm, positionFilter]);
 
-  // ─── RENDER ───
   return (
     <div
       style={{
@@ -154,11 +161,7 @@ export default function Players({ players, events, perms }: any) {
         animation: "fadeIn 0.3s ease",
       }}
     >
-      {/* ── DISTRIBUCIÓN DE LA PLANTILLA ── */}
-      <SectionCard
-        title="Distribución de la Plantilla"
-        icon={<Users size={16} />}
-      >
+      <SectionCard title="Plantilla Activa" icon={<Users size={16} />}>
         <div
           style={{
             display: "grid",
@@ -193,7 +196,6 @@ export default function Players({ players, events, perms }: any) {
         </div>
       </SectionCard>
 
-      {/* ── FORMULARIO DE EDICIÓN ── */}
       {(canEditAll || (isPressOnly && editingPlayerId)) && (
         <PlayerForm
           isPressOnly={isPressOnly}
@@ -210,14 +212,15 @@ export default function Players({ players, events, perms }: any) {
           setPlayerBirthDate={setPlayerBirthDate}
           playerImageUrl={playerImageUrl}
           setPlayerImageUrl={setPlayerImageUrl}
-          isDT={isDT} // NUEVA PROP
-          setIsDT={setIsDT} // NUEVA PROP
+          isDT={isDT}
+          setIsDT={setIsDT}
+          playerActive={playerActive}
+          setPlayerActive={setPlayerActive} // 👈 NUEVAS PROPS
           onSubmit={handleSavePlayer}
           onCancel={handleCancelEdit}
         />
       )}
 
-      {/* ── PLANTILLA OFICIAL ── */}
       <SectionCard
         title={
           <div
@@ -258,7 +261,6 @@ export default function Players({ players, events, perms }: any) {
           </div>
         }
       >
-        {/* BARRA DE BÚSQUEDA Y FILTROS */}
         <div
           style={{
             display: "flex",
@@ -285,30 +287,51 @@ export default function Players({ players, events, perms }: any) {
               style={{ paddingLeft: "2.25rem" }}
             />
           </div>
-          <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>
-            {["Todos", "Portero", "Defensa", "Medio", "Delantero"].map(
-              (pos) => (
-                <button
-                  key={pos}
-                  type="button"
-                  onClick={() => setPositionFilter(pos)}
-                  style={{
-                    padding: "0.35rem 0.75rem",
-                    borderRadius: RADIUS.full,
-                    fontSize: "0.75rem",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    border: `1px solid ${positionFilter === pos ? C.navy900 : C.gray300}`,
-                    backgroundColor:
-                      positionFilter === pos ? C.navy900 : C.white,
-                    color: positionFilter === pos ? C.white : C.gray600,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {pos}
-                </button>
-              ),
-            )}
+
+          <div
+            className="hide-scroll"
+            style={{
+              display: "flex",
+              gap: "0.4rem",
+              overflowX: "auto",
+              paddingBottom: "0.25rem",
+            }}
+          >
+            {/* 👈 NUEVO: Filtro de inactivos renderizado dinámicamente */}
+            {[
+              "Todos",
+              "Portero",
+              "Defensa",
+              "Medio",
+              "Delantero",
+              "Inactivos",
+            ].map((pos) => (
+              <button
+                key={pos}
+                type="button"
+                onClick={() => setPositionFilter(pos)}
+                style={{
+                  padding: "0.35rem 0.75rem",
+                  borderRadius: RADIUS.full,
+                  fontSize: "0.75rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  border: `1px solid ${positionFilter === pos ? (pos === "Inactivos" ? C.red : C.navy900) : C.gray300}`,
+                  backgroundColor:
+                    positionFilter === pos
+                      ? pos === "Inactivos"
+                        ? C.red
+                        : C.navy900
+                      : C.white,
+                  color: positionFilter === pos ? C.white : C.gray600,
+                  transition: "all 0.2s ease",
+                }}
+              >
+                {pos}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -333,16 +356,15 @@ export default function Players({ players, events, perms }: any) {
                 player={player}
                 canEditAll={canEditAll}
                 isPressOnly={isPressOnly}
-                onSelect={setSelectedPlayer}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onSelect={() => setSelectedPlayer(player)}
+                onEdit={() => handleEdit(player)}
+                onDelete={() => handleDelete(player.id)}
               />
             ))}
           </div>
         )}
       </SectionCard>
 
-      {/* ── MODALES EXTERNOS ── */}
       {showCompareModal && (
         <CompareModal
           playersStats={clubPlayerStats}
