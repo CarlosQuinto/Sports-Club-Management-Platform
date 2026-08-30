@@ -12,7 +12,6 @@ import {
   X,
   Star,
 } from "lucide-react";
-// 👇 IMPORTANTE: Añadimos updateDoc
 import {
   collection,
   addDoc,
@@ -20,6 +19,16 @@ import {
   doc,
   updateDoc,
 } from "firebase/firestore";
+// 👇 IMPORTACIONES DE STORAGE Y COMPRESIÓN 👇
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import imageCompression from "browser-image-compression";
+
 import { db } from "../../hooks/useClubData";
 import {
   C,
@@ -53,11 +62,20 @@ export default function GallerySection({
     { url: string; caption: string }[]
   >([]);
 
+  // 👇 ESTADO PARA SUBIDA EN LA SECCIÓN PRINCIPAL 👇
+  const [isUploadingMain, setIsUploadingMain] = useState(false);
+
   // ── ESTADOS DEL MODAL ──
   const [modalAlbumName, setModalAlbumName] = useState<string | null>(null);
   const [modalPhotosList, setModalPhotosList] = useState([
     { url: "", caption: "" },
   ]);
+
+  // 👇 ESTADOS PARA SUBIDA Y LIMPIEZA EN EL MODAL 👇
+  const [uploadingModalIndex, setUploadingModalIndex] = useState<number | null>(
+    null,
+  );
+  const [newlyUploadedModal, setNewlyUploadedModal] = useState<string[]>([]);
 
   const albumsRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +108,55 @@ export default function GallerySection({
     setNewCaption("");
   };
 
-  const removeStagingPhoto = (idx: number) => {
+  // 👇 NUEVO: Subir foto en la sección principal 👇
+  const handleMainFileUpload = async (file: File) => {
+    if (!file) return;
+    try {
+      setIsUploadingMain(true);
+      const options = {
+        maxSizeMB: 0.2, // Máximo 200kb
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        initialQuality: 0.8,
+      };
+
+      const compressedFile = await imageCompression(file, options);
+      const storage = getStorage();
+      const fileRef = ref(
+        storage,
+        `gallery/photo_${Date.now()}_${compressedFile.name}`,
+      );
+
+      await uploadBytes(fileRef, compressedFile);
+      const url = await getDownloadURL(fileRef);
+
+      // Lo agregamos automáticamente al área de "staging"
+      setStagingPhotos((prev) => [
+        ...prev,
+        { url, caption: newCaption.trim() },
+      ]);
+      setNewCaption(""); // Limpiamos el texto para la siguiente
+    } catch (error) {
+      console.error("Error subiendo foto:", error);
+      alert("Error al subir la imagen.");
+    } finally {
+      setIsUploadingMain(false);
+    }
+  };
+
+  // 👇 MODIFICADO: Si borras de la lista de preparación, se elimina de Storage 👇
+  const removeStagingPhoto = async (idx: number) => {
+    const photoUrl = stagingPhotos[idx].url;
+
+    if (photoUrl.includes("firebasestorage.googleapis.com")) {
+      try {
+        const storage = getStorage();
+        await deleteObject(ref(storage, photoUrl));
+        console.log("Foto huérfana de preparación eliminada.");
+      } catch (e) {
+        console.error("Error al borrar foto de preparación", e);
+      }
+    }
     setStagingPhotos(stagingPhotos.filter((_, i) => i !== idx));
   };
 
@@ -98,7 +164,6 @@ export default function GallerySection({
     if (stagingPhotos.length === 0) return;
     const finalAlbumName = albumName.trim() || "📸 Galería General";
 
-    // 👇 NUEVO: Si el álbum ya existe, metemos las fotos AL FINAL para no robar la portada
     const existingPhotos = gallery.filter(
       (g) => (g.albumName || "📸 Galería General") === finalAlbumName,
     );
@@ -107,7 +172,7 @@ export default function GallerySection({
       const oldestTime = Math.min(
         ...existingPhotos.map((p) => new Date(p.timestamp).getTime()),
       );
-      baseTime = oldestTime - 1000; // Un segundo antes que la más vieja
+      baseTime = oldestTime - 1000;
     }
 
     for (let i = 0; i < stagingPhotos.length; i++) {
@@ -121,6 +186,7 @@ export default function GallerySection({
       });
     }
     setStagingPhotos([]);
+    setAlbumName("");
   };
 
   // ==========================================
@@ -129,9 +195,23 @@ export default function GallerySection({
   const handleOpenModal = (aName: string) => {
     setModalAlbumName(aName);
     setModalPhotosList([{ url: "", caption: "" }]);
+    setNewlyUploadedModal([]);
   };
 
-  const handleCloseModal = () => {
+  // 👇 MODIFICADO: El botón cancelar del Modal borra la basura 👇
+  const handleCloseModal = async () => {
+    if (newlyUploadedModal.length > 0) {
+      const storage = getStorage();
+      for (const url of newlyUploadedModal) {
+        try {
+          await deleteObject(ref(storage, url));
+          console.log("Foto cancelada del modal eliminada.");
+        } catch (e) {
+          console.error("Error borrando foto cancelada", e);
+        }
+      }
+    }
+    setNewlyUploadedModal([]);
     setModalAlbumName(null);
     setModalPhotosList([{ url: "", caption: "" }]);
   };
@@ -146,6 +226,50 @@ export default function GallerySection({
     setModalPhotosList(newList);
   };
 
+  // 👇 MODIFICADO: Si borra una fila del modal, limpia Storage 👇
+  const removeModalPhotoRow = async (idx: number) => {
+    const photoUrl = modalPhotosList[idx].url;
+    if (photoUrl && newlyUploadedModal.includes(photoUrl)) {
+      try {
+        await deleteObject(ref(getStorage(), photoUrl));
+        setNewlyUploadedModal((prev) => prev.filter((u) => u !== photoUrl));
+      } catch (e) {}
+    }
+    setModalPhotosList(modalPhotosList.filter((_, i) => i !== idx));
+  };
+
+  // 👇 NUEVO: Subir foto dentro del modal 👇
+  const handleModalFileUpload = async (index: number, file: File) => {
+    if (!file) return;
+    try {
+      setUploadingModalIndex(index);
+
+      const options = {
+        maxSizeMB: 0.2,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        initialQuality: 0.8,
+      };
+      const compressedFile = await imageCompression(file, options);
+      const storage = getStorage();
+      const fileRef = ref(
+        storage,
+        `gallery/photo_${Date.now()}_${compressedFile.name}`,
+      );
+
+      await uploadBytes(fileRef, compressedFile);
+      const url = await getDownloadURL(fileRef);
+
+      updateModalPhoto(index, "url", url);
+      setNewlyUploadedModal((prev) => [...prev, url]); // La rastreamos como basura potencial
+    } catch (error) {
+      console.error("Error subiendo foto:", error);
+      alert("Error al subir la imagen.");
+    } finally {
+      setUploadingModalIndex(null);
+    }
+  };
+
   const handleModalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalAlbumName) return;
@@ -153,7 +277,6 @@ export default function GallerySection({
     const validPhotos = modalPhotosList.filter((p) => p.url.trim() !== "");
     if (validPhotos.length === 0) return;
 
-    // 👇 NUEVO: Mismo truco, metemos las fotos AL FINAL del álbum existente
     const existingPhotos = gallery.filter(
       (g) => (g.albumName || "📸 Galería General") === modalAlbumName,
     );
@@ -175,31 +298,60 @@ export default function GallerySection({
         timestamp: d.toISOString(),
       });
     }
-    handleCloseModal();
+
+    // Como sí guardó, vaciamos el rastreador para que NO las borre al cerrar
+    setNewlyUploadedModal([]);
+
+    setModalAlbumName(null);
+    setModalPhotosList([{ url: "", caption: "" }]);
   };
 
   // ==========================================
   // REORDENAMIENTO Y EDICIÓN DE FOTOS
   // ==========================================
-  const handleDeletePhoto = async (collectionName: string, id: string) => {
+  // 👇 MODIFICADO: Ahora si borras la foto de la app, también se borra de Storage 👇
+  const handleDeletePhoto = async (
+    collectionName: string,
+    id: string,
+    photoUrl?: string,
+  ) => {
     if (
       window.confirm("¿Seguro que deseas eliminar esta foto de la galería?")
     ) {
       await deleteDoc(doc(db, collectionName, id));
+
+      // Borrar de Storage si pertenece a Firebase
+      if (photoUrl && photoUrl.includes("firebasestorage.googleapis.com")) {
+        try {
+          await deleteObject(ref(getStorage(), photoUrl));
+          console.log("Foto eliminada físicamente de Storage");
+        } catch (e) {
+          console.error("Error borrando foto física", e);
+        }
+      }
     }
   };
 
+  // 👇 MODIFICADO: Al borrar un álbum, aniquila todas las fotos de Storage 👇
   const handleDeleteAlbum = async (aName: string, photos: any[]) => {
     if (
       window.confirm(
         `¿Seguro que deseas eliminar el álbum "${aName}" y TODAS sus fotos (${photos.length})? Esta acción no se puede deshacer.`,
       )
     ) {
-      await Promise.all(photos.map((p) => deleteDoc(doc(db, "gallery", p.id))));
+      await Promise.all(
+        photos.map(async (p) => {
+          await deleteDoc(doc(db, "gallery", p.id));
+          if (p.url && p.url.includes("firebasestorage.googleapis.com")) {
+            try {
+              await deleteObject(ref(getStorage(), p.url));
+            } catch (e) {}
+          }
+        }),
+      );
     }
   };
 
-  // 👈 NUEVO: Intercambia los timestamps de dos fotos para reordenarlas
   const handleMovePhoto = async (
     photos: any[],
     index: number,
@@ -230,7 +382,6 @@ export default function GallerySection({
     }
   };
 
-  // 👈 NUEVO: Toma una foto y le da 1 segundo más que la portada actual para que tome su lugar
   const handleMakeCover = async (photos: any[], index: number) => {
     if (index === 0) return;
     const currentCover = photos[0];
@@ -335,7 +486,7 @@ export default function GallerySection({
           alignItems: "center",
           padding: "1rem",
         }}
-        onClick={handleCloseModal}
+        onClick={handleCloseModal} // 👈 Click fuera limpia huérfanos
       >
         <div
           style={{
@@ -373,7 +524,7 @@ export default function GallerySection({
               {modalAlbumName}
             </h3>
             <button
-              onClick={handleCloseModal}
+              onClick={handleCloseModal} // 👈 Click aquí limpia huérfanos
               style={{
                 background: "none",
                 border: "none",
@@ -467,23 +618,61 @@ export default function GallerySection({
                         gap: "0.5rem",
                       }}
                     >
-                      <input
-                        type="url"
-                        placeholder="Link de la imagen (Imgur, Postimages, etc.)"
-                        value={photo.url}
-                        onChange={(e) =>
-                          updateModalPhoto(idx, "url", e.target.value)
-                        }
+                      {/* 👇 MODIFICADO: Input + Botón Subir en el Modal 👇 */}
+                      <div
                         style={{
-                          width: "100%",
-                          border: "none",
-                          outline: "none",
-                          fontSize: "0.8125rem",
-                          color: C.navy900,
-                          backgroundColor: "transparent",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "0.4rem",
                         }}
-                        required={idx === 0}
-                      />
+                      >
+                        <input
+                          type="url"
+                          placeholder="Link de la imagen (O sube una abajo 👇)"
+                          value={photo.url}
+                          onChange={(e) =>
+                            updateModalPhoto(idx, "url", e.target.value)
+                          }
+                          style={{
+                            width: "100%",
+                            border: "none",
+                            outline: "none",
+                            fontSize: "0.8125rem",
+                            color: C.navy900,
+                            backgroundColor: "transparent",
+                          }}
+                          required={idx === 0 && !photo.url}
+                        />
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.3rem",
+                            color: C.amber,
+                            fontSize: "0.7rem",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            width: "fit-content",
+                          }}
+                        >
+                          <UploadCloud size={14} />
+                          {uploadingModalIndex === idx
+                            ? "Subiendo foto..."
+                            : "Subir foto del dispositivo"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingModalIndex !== null}
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                handleModalFileUpload(idx, e.target.files[0]);
+                              }
+                            }}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+
                       <div
                         style={{
                           borderTop: `1px dashed ${C.gray300}`,
@@ -511,11 +700,7 @@ export default function GallerySection({
                     {modalPhotosList.length > 1 && (
                       <button
                         type="button"
-                        onClick={() =>
-                          setModalPhotosList(
-                            modalPhotosList.filter((_, i) => i !== idx),
-                          )
-                        }
+                        onClick={() => removeModalPhotoRow(idx)}
                         style={{
                           background: "none",
                           border: "none",
@@ -561,15 +746,18 @@ export default function GallerySection({
 
             <PrimaryButton
               type="submit"
+              disabled={uploadingModalIndex !== null}
               style={{
                 display: "flex",
                 justifyContent: "center",
                 gap: "0.4rem",
                 alignItems: "center",
                 marginTop: "0.5rem",
+                opacity: uploadingModalIndex !== null ? 0.7 : 1,
               }}
             >
-              <UploadCloud size={18} /> Guardar Fotos
+              <UploadCloud size={18} />{" "}
+              {uploadingModalIndex !== null ? "Procesando..." : "Guardar Fotos"}
             </PrimaryButton>
           </form>
         </div>
@@ -629,6 +817,7 @@ export default function GallerySection({
               >
                 2. Añadir foto a la colección:
               </p>
+
               <div
                 style={{
                   display: "flex",
@@ -636,13 +825,58 @@ export default function GallerySection({
                   gap: "0.5rem",
                 }}
               >
-                <FormInput
-                  type="text"
-                  placeholder="Link de la imagen"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                />
-                <div style={{ display: "flex", gap: "0.5rem" }}>
+                {/* 👇 MODIFICADO: Input URL + Botón Subir 👇 */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.2rem",
+                  }}
+                >
+                  <FormInput
+                    type="text"
+                    placeholder="Pega un link de imagen"
+                    value={newUrl}
+                    onChange={(e) => setNewUrl(e.target.value)}
+                  />
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      color: C.amber,
+                      fontSize: "0.75rem",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      width: "fit-content",
+                      marginTop: "0.2rem",
+                    }}
+                  >
+                    <UploadCloud size={14} />
+                    {isUploadingMain
+                      ? "Comprimiendo y subiendo foto..."
+                      : "O súbela desde tu dispositivo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingMain}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleMainFileUpload(e.target.files[0]);
+                        }
+                      }}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "0.5rem",
+                    marginTop: "0.4rem",
+                  }}
+                >
                   <FormInput
                     type="text"
                     placeholder="Descripción (Opcional)"
@@ -652,10 +886,10 @@ export default function GallerySection({
                   />
                   <SecondaryButton
                     type="submit"
-                    disabled={!newUrl.trim()}
+                    disabled={!newUrl.trim() || isUploadingMain}
                     style={{ whiteSpace: "nowrap", padding: "0.5rem 1rem" }}
                   >
-                    <Plus size={16} /> Añadir
+                    <Plus size={16} /> Añadir a lista
                   </SecondaryButton>
                 </div>
               </div>
@@ -967,7 +1201,9 @@ export default function GallerySection({
 
                             {/* Botón Borrar */}
                             <button
-                              onClick={() => handleDeletePhoto("gallery", g.id)}
+                              onClick={() =>
+                                handleDeletePhoto("gallery", g.id, g.url)
+                              }
                               style={{
                                 position: "absolute",
                                 top: 0,

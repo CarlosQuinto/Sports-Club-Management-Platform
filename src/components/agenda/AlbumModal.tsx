@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Images, X, Plus, Camera, Trash2, ChevronUp } from "lucide-react";
+import {
+  Images,
+  X,
+  Plus,
+  Camera,
+  Trash2,
+  ChevronUp,
+  UploadCloud,
+} from "lucide-react";
 import {
   C,
   RADIUS,
@@ -11,6 +19,16 @@ import {
   SecondaryButton,
 } from "../../components/ui";
 
+// 👇 IMPORTACIONES DE STORAGE Y COMPRESIÓN 👇
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import imageCompression from "browser-image-compression";
+
 interface AlbumModalProps {
   ev: any;
   onClose: () => void;
@@ -19,6 +37,10 @@ interface AlbumModalProps {
 
 export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
   const [albumUrls, setAlbumUrls] = useState<string[]>([]);
+
+  // 👇 ESTADOS PARA SUBIDA Y BASURA 👇
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+  const [newlyUploadedPhotos, setNewlyUploadedPhotos] = useState<string[]>([]);
 
   // Inicializar estado cuando se abre el modal
   useEffect(() => {
@@ -30,6 +52,7 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
             ? [ev.photoUrl]
             : [];
       setAlbumUrls(initialUrls.length > 0 ? initialUrls : [""]);
+      setNewlyUploadedPhotos([]); // Reiniciamos el rastreador al abrir
     }
   }, [ev]);
 
@@ -42,10 +65,98 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
     setAlbumUrls(newUrls);
   };
 
-  const handleSave = () => {
+  // 👇 NUEVA FUNCIÓN: Subir foto comprimida al Storage 👇
+  const handleFileUpload = async (index: number, file: File) => {
+    if (!file) return;
+    try {
+      setUploadingIndex(index);
+
+      const options = {
+        maxSizeMB: 0.2, // 200 KB máximo
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        initialQuality: 0.8,
+      };
+
+      const compressedFile = await imageCompression(file, options);
+      const storage = getStorage();
+      const fileRef = ref(
+        storage,
+        `events/album_${Date.now()}_${compressedFile.name}`,
+      );
+
+      await uploadBytes(fileRef, compressedFile);
+      const url = await getDownloadURL(fileRef);
+
+      setNewlyUploadedPhotos((prev) => [...prev, url]);
+
+      const newUrls = [...albumUrls];
+      newUrls[index] = url;
+      setAlbumUrls(newUrls);
+    } catch (error) {
+      console.error("Error subiendo foto:", error);
+      alert("Error al subir la imagen. Verifica tu conexión.");
+    } finally {
+      setUploadingIndex(null);
+    }
+  };
+
+  // 👇 LIMPIEZA AL CANCELAR 👇
+  const handleCloseWithCleanup = async () => {
+    if (newlyUploadedPhotos.length > 0) {
+      const storage = getStorage();
+      for (const url of newlyUploadedPhotos) {
+        try {
+          await deleteObject(ref(storage, url));
+          console.log("Foto cancelada eliminada:", url);
+        } catch (e) {
+          console.error("Error borrando foto cancelada", e);
+        }
+      }
+    }
+    setNewlyUploadedPhotos([]);
+    onClose();
+  };
+
+  // 👇 LIMPIEZA AL GUARDAR 👇
+  const handleSaveWithCleanup = async () => {
     const cleanUrls = albumUrls
       .map((url) => url.trim())
       .filter((url) => url !== "");
+
+    const storage = getStorage();
+
+    // 1. Borrar fotos nuevas que subió y luego quitó antes de guardar
+    const orphanedNew = newlyUploadedPhotos.filter(
+      (url) => !cleanUrls.includes(url),
+    );
+
+    // 2. Borrar fotos viejas que estaban en la base de datos y decidió quitar del álbum
+    const oldUrls =
+      ev.photoUrls && ev.photoUrls.length > 0
+        ? ev.photoUrls
+        : ev.photoUrl
+          ? [ev.photoUrl]
+          : [];
+
+    const orphanedOld = oldUrls.filter(
+      (oldUrl: string) =>
+        !cleanUrls.includes(oldUrl) &&
+        oldUrl.includes("firebasestorage.googleapis.com"),
+    );
+
+    // Unimos toda la basura y la destruimos en Storage
+    const urlsToDelete = [...orphanedNew, ...orphanedOld];
+    for (const url of urlsToDelete) {
+      try {
+        await deleteObject(ref(storage, url));
+        console.log("Foto eliminada definitivamente del servidor:", url);
+      } catch (error) {
+        console.error("Error limpiando foto", error);
+      }
+    }
+
+    setNewlyUploadedPhotos([]);
     onSave(cleanUrls);
   };
 
@@ -63,7 +174,7 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
         alignItems: "center",
         padding: "1rem",
       }}
-      onClick={onClose}
+      onClick={handleCloseWithCleanup} // 👈 Click fuera limpia
     >
       <div
         style={{
@@ -100,7 +211,7 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
             <Images size={20} color={C.blueAccent} /> Álbum del Evento
           </h3>
           <button
-            onClick={onClose}
+            onClick={handleCloseWithCleanup} // 👈 Botón X limpia
             style={{
               background: "none",
               border: "none",
@@ -119,8 +230,8 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
             marginBottom: "1.5rem",
           }}
         >
-          Pega los links de las imágenes (Imgur, Postimages). La primera imagen
-          será la foto de portada.
+          Sube imágenes directo de tu dispositivo o pega los links. La primera
+          imagen será la foto de portada.
         </p>
 
         <div
@@ -160,10 +271,12 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
                   Portada
                 </Badge>
               )}
+
+              {/* Miniatura inteligente */}
               <div
                 style={{
-                  width: "44px",
-                  height: "44px",
+                  width: "48px",
+                  height: "48px",
                   borderRadius: RADIUS.sm,
                   backgroundColor: C.gray200,
                   overflow: "hidden",
@@ -183,21 +296,71 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
                       objectFit: "cover",
                     }}
                     onError={(e) => (e.currentTarget.style.display = "none")}
+                    onLoad={(e) => (e.currentTarget.style.display = "block")}
                   />
                 ) : (
                   <Camera size={20} color={C.gray400} />
                 )}
               </div>
-              <FormInput
-                value={url}
-                onChange={(e) => {
-                  const n = [...albumUrls];
-                  n[i] = e.target.value;
-                  setAlbumUrls(n);
+
+              {/* Contenedor del Input y Botón de Subida */}
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.3rem",
                 }}
-                placeholder="https://ejemplo.com/foto.jpg"
-                style={{ flex: 1, fontSize: "0.8125rem" }}
-              />
+              >
+                <FormInput
+                  value={url}
+                  onChange={(e) => {
+                    const n = [...albumUrls];
+                    n[i] = e.target.value;
+                    setAlbumUrls(n);
+                  }}
+                  placeholder="https://ejemplo.com/foto.jpg"
+                  style={{
+                    flex: 1,
+                    fontSize: "0.8125rem",
+                    border: "none",
+                    background: "transparent",
+                    padding: "0.2rem 0",
+                  }}
+                />
+
+                {/* 👇 BOTÓN PARA SUBIR DESDE DISPOSITIVO 👇 */}
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    color: C.amber,
+                    fontSize: "0.7rem",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    width: "fit-content",
+                  }}
+                >
+                  <UploadCloud size={14} />
+                  {uploadingIndex === i
+                    ? "Subiendo..."
+                    : "Subir desde dispositivo"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={uploadingIndex !== null}
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        handleFileUpload(i, e.target.files[0]);
+                      }
+                    }}
+                    style={{ display: "none" }}
+                  />
+                </label>
+              </div>
+
+              {/* Botones de acción (Mover y Borrar) */}
               <div
                 style={{
                   display: "flex",
@@ -242,6 +405,7 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
               </div>
             </div>
           ))}
+
           <SecondaryButton
             type="button"
             onClick={() => setAlbumUrls([...albumUrls, ""])}
@@ -258,8 +422,12 @@ export default function AlbumModal({ ev, onClose, onSave }: AlbumModalProps) {
           </SecondaryButton>
         </div>
 
-        <PrimaryButton onClick={handleSave} style={{ width: "100%" }}>
-          Guardar Álbum
+        <PrimaryButton
+          onClick={handleSaveWithCleanup}
+          style={{ width: "100%", opacity: uploadingIndex !== null ? 0.7 : 1 }}
+          disabled={uploadingIndex !== null}
+        >
+          {uploadingIndex !== null ? "Procesando imágenes..." : "Guardar Álbum"}
         </PrimaryButton>
       </div>
     </div>,
