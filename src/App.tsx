@@ -10,17 +10,34 @@ import {
   LayoutTemplate,
   X,
   Edit2,
+  UploadCloud, // 👈 AÑADIDO
 } from "lucide-react";
 import { useClubData, db } from "./hooks/useClubData";
-import { C, RADIUS, SHADOWS, FormInput, PrimaryButton } from "./components/ui";
+import {
+  C,
+  RADIUS,
+  SHADOWS,
+  FormInput,
+  PrimaryButton,
+  SecondaryButton,
+} from "./components/ui"; // 👈 Añadido SecondaryButton
 import { formatFriendlyDate, formatFriendlyTime } from "./utils/helpers";
-
 import Home from "./pages/Home";
 import Agenda from "./pages/Agenda";
 import Players from "./pages/Players";
 import Finances from "./pages/Finances";
 import Inventory from "./pages/Inventory";
 import { doc, updateDoc } from "firebase/firestore";
+
+// 👇 IMPORTACIONES DE STORAGE Y COMPRESIÓN 👇
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import imageCompression from "browser-image-compression";
 
 export default function App() {
   const {
@@ -30,7 +47,7 @@ export default function App() {
     inventory,
     events,
     gallery,
-    goals, // 👈 AÑADIDO: Extraemos las metas (goals)
+    goals,
     loading,
   } = useClubData();
   const [activeTab, setActiveTab] = useState<
@@ -46,7 +63,6 @@ export default function App() {
     null,
   );
 
-  // Refs para gestionar listeners y timeouts pendientes
   const pendingTransitionCleanup = useRef<(() => void) | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
 
@@ -60,33 +76,117 @@ export default function App() {
   const [editClubName, setEditClubName] = useState("");
   const [editClubLogo, setEditClubLogo] = useState("");
 
+  // 👇 NUEVOS ESTADOS PARA SUBIR EL ESCUDO 👇
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [newlyUploadedLogos, setNewlyUploadedLogos] = useState<string[]>([]);
+
   const handleOpenEditClub = () => {
-    // Carga los datos actuales (o los por defecto)
     setEditClubName(clubInfo?.name || "Joga Bonito FC");
     setEditClubLogo(
       clubInfo?.logoUrl ||
         "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg",
     );
+    setNewlyUploadedLogos([]); // Limpiamos el rastreador de basura al abrir
     setShowEditClub(true);
   };
 
+  // 👇 LÓGICA DE SUBIDA DE ESCUDO 👇
+  const handleLogoUpload = async (file: File) => {
+    if (!file) return;
+    try {
+      setIsUploadingLogo(true);
+
+      // Compresión extrema para el logo (500px máximo, peso imperceptible)
+      const options = {
+        maxSizeMB: 0.1,
+        maxWidthOrHeight: 500,
+        useWebWorker: true,
+        initialQuality: 0.8,
+      };
+
+      const compressedFile = await imageCompression(file, options);
+
+      const storage = getStorage();
+      const fileRef = ref(
+        storage,
+        `logos/logo_${Date.now()}_${compressedFile.name}`,
+      );
+
+      await uploadBytes(fileRef, compressedFile);
+      const url = await getDownloadURL(fileRef);
+
+      setNewlyUploadedLogos((prev) => [...prev, url]); // Rastreamos
+      setEditClubLogo(url); // Mostramos
+    } catch (error) {
+      console.error("Error subiendo logo:", error);
+      alert("Error al subir el escudo.");
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  // 👇 FUNCIÓN CANCELAR (Limpia basura de la sesión) 👇
+  const handleCancelEditClub = async () => {
+    if (newlyUploadedLogos.length > 0) {
+      const storage = getStorage();
+      for (const urlToDelete of newlyUploadedLogos) {
+        try {
+          const fileRef = ref(storage, urlToDelete);
+          await deleteObject(fileRef);
+          console.log("Logo cancelado, eliminado con éxito:", urlToDelete);
+        } catch (error) {
+          console.error("No se pudo eliminar el logo cancelado:", error);
+        }
+      }
+    }
+    setNewlyUploadedLogos([]);
+    setShowEditClub(false);
+  };
+
+  // 👇 FUNCIÓN GUARDAR (Limpia logos viejos) 👇
   const handleSaveClub = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // Apuntamos al documento exacto que tienes en tu hook
-      const clubRef = doc(db, "settings", "club_info");
+      const storage = getStorage();
+      const oldLogo = clubInfo?.logoUrl;
 
-      // Enviamos los nuevos datos a Firebase
+      // 1. Si cambiaron el logo y el viejo estaba en Firebase, borramos el viejo.
+      if (
+        oldLogo &&
+        oldLogo !== editClubLogo &&
+        oldLogo.includes("firebasestorage.googleapis.com")
+      ) {
+        try {
+          const fileRef = ref(storage, oldLogo);
+          await deleteObject(fileRef);
+          console.log("Escudo anterior eliminado.");
+        } catch (e) {
+          console.error("No se pudo borrar el escudo viejo", e);
+        }
+      }
+
+      // 2. Si subieron 3 logos en la misma sesión y se quedaron con 1, borramos los 2 huérfanos.
+      const orphanedNewLogos = newlyUploadedLogos.filter(
+        (url) => url !== editClubLogo,
+      );
+      for (const url of orphanedNewLogos) {
+        try {
+          const fileRef = ref(storage, url);
+          await deleteObject(fileRef);
+        } catch (e) {}
+      }
+
+      const clubRef = doc(db, "settings", "club_info");
       await updateDoc(clubRef, {
         name: editClubName,
         logoUrl: editClubLogo,
       });
 
-      // Cerramos el modal
+      setNewlyUploadedLogos([]);
       setShowEditClub(false);
     } catch (error) {
       console.error("Error al actualizar el club:", error);
-      alert("Hubo un problema al guardar los cambios. Revisa la consola.");
+      alert("Hubo un problema al guardar los cambios.");
     }
   };
 
@@ -133,12 +233,10 @@ export default function App() {
     { key: "inventario", label: "Inventario", icon: <Package size={16} /> },
   ] as const;
 
-  // ── MAPEO DE ÍNDICES PARA EL SLIDER DINÁMICO ──
   const activeIndex = useMemo(() => {
     return navItems.findIndex((item) => item.key === activeTab);
   }, [activeTab]);
 
-  // ── MAGIA: AUTO-SCROLL CENTRADO DE LA TABA ACTIVA ──
   useEffect(() => {
     if (navContainerRef.current) {
       const container = navContainerRef.current;
@@ -158,7 +256,6 @@ export default function App() {
     }
   }, [activeIndex]);
 
-  // ── CÁLCULO DEL PRÓXIMO EVENTO ──
   const nextEvent = useMemo(() => {
     const now = new Date();
     const sorted = [...events].sort(
@@ -168,7 +265,6 @@ export default function App() {
     return sorted.find((e) => new Date(e.eventDate + "T" + e.eventTime) >= now);
   }, [events]);
 
-  // ── MOTOR DEL RELOJ (COUNTDOWN) ──
   const [timeLeft, setTimeLeft] = useState("");
 
   useEffect(() => {
@@ -205,7 +301,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [nextEvent]);
 
-  // ── LIMPIEZA DE SCROLL PENDIENTE Y RESALTADO ──
   const clearPendingScroll = () => {
     if (pendingTransitionCleanup.current) {
       pendingTransitionCleanup.current();
@@ -218,7 +313,6 @@ export default function App() {
     setHighlightedEventId(null);
   };
 
-  // ── REDIRECCIÓN Y SCROLL DEL BANNER ──
   const handleBannerClick = () => {
     if (!nextEvent) return;
     clearPendingScroll();
@@ -262,7 +356,6 @@ export default function App() {
     }
   };
 
-  // ── MANEJADOR DE CAMBIO DE PESTAÑA ──
   const handleTabChange = (tab: typeof activeTab) => {
     clearPendingScroll();
     setActiveTab(tab);
@@ -277,7 +370,6 @@ export default function App() {
         color: C.gray800,
       }}
     >
-      {/* ── HEADER DINDÁMICO ── */}
       <header
         style={{
           backgroundColor: C.navy900,
@@ -298,14 +390,13 @@ export default function App() {
           <div
             style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
           >
-            {/* --- IMAGEN DEL ESCUDO DINÁMICA --- */}
             <div
               style={{
                 width: "42px",
                 height: "42px",
                 borderRadius: "50%",
                 overflow: "hidden",
-                backgroundColor: "#121212", // 👈 Cambiamos el fondo a Negro Carbón
+                backgroundColor: "#121212",
                 border: `1.5px solid ${C.amber}`,
                 flexShrink: 0,
                 display: "flex",
@@ -323,11 +414,10 @@ export default function App() {
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  transform: "scale(1.5)", // 👈 Aumentamos un poco más el zoom
+                  transform: "scale(1.5)",
                 }}
               />
             </div>
-            {/* -------------------------- */}
             <div>
               <div
                 style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
@@ -343,7 +433,6 @@ export default function App() {
                   {clubInfo?.name || "Joga Bonito FC"}
                 </h1>
 
-                {/* BOTÓN DE EDITAR SOLO PARA ADMIN */}
                 {perms.isAdmin && (
                   <button
                     onClick={handleOpenEditClub}
@@ -523,7 +612,7 @@ export default function App() {
             alignItems: "center",
             padding: "1rem",
           }}
-          onClick={() => setShowEditClub(false)}
+          onClick={handleCancelEditClub} // 👈 Cerrar con clic afuera ahora ejecuta limpieza
         >
           <div
             style={{
@@ -558,7 +647,7 @@ export default function App() {
                 <Edit2 size={20} color={C.amber} /> Ajustes del Club
               </h3>
               <button
-                onClick={() => setShowEditClub(false)}
+                onClick={handleCancelEditClub} // 👈 X limpia basura
                 style={{
                   background: "none",
                   border: "none",
@@ -608,14 +697,52 @@ export default function App() {
                 >
                   URL del Escudo (Logo)
                 </label>
-                <FormInput
-                  type="url"
-                  required
-                  value={editClubLogo}
-                  onChange={(e) => setEditClubLogo(e.target.value)}
-                  placeholder="https://ejemplo.com/logo.png"
-                  style={{ width: "100%" }}
-                />
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.4rem",
+                  }}
+                >
+                  <FormInput
+                    type="url"
+                    required
+                    value={editClubLogo}
+                    onChange={(e) => setEditClubLogo(e.target.value)}
+                    placeholder="https://ejemplo.com/logo.png"
+                    style={{ width: "100%" }}
+                  />
+                  {/* 👇 BOTÓN PARA SUBIR EL ESCUDO DESDE EL DISPOSITIVO 👇 */}
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.3rem",
+                      color: C.amber,
+                      fontSize: "0.75rem",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      width: "fit-content",
+                    }}
+                  >
+                    <UploadCloud size={14} />
+                    {isUploadingLogo
+                      ? "Subiendo escudo..."
+                      : "Subir desde dispositivo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingLogo}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleLogoUpload(e.target.files[0]);
+                        }
+                      }}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                </div>
+
                 {editClubLogo && (
                   <div style={{ marginTop: "1rem", textAlign: "center" }}>
                     <p
@@ -636,18 +763,28 @@ export default function App() {
                         borderRadius: "50%",
                         objectFit: "cover",
                         border: `2px solid ${C.gray200}`,
+                        backgroundColor: "#121212",
                       }}
                     />
                   </div>
                 )}
               </div>
 
-              <PrimaryButton
-                type="submit"
-                style={{ width: "100%", marginTop: "0.5rem" }}
+              <div
+                style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}
               >
-                Guardar Cambios
-              </PrimaryButton>
+                <PrimaryButton
+                  type="submit"
+                  style={{ flex: 1, opacity: isUploadingLogo ? 0.7 : 1 }}
+                  disabled={isUploadingLogo}
+                >
+                  {isUploadingLogo ? "Guardando..." : "Guardar Cambios"}
+                </PrimaryButton>
+                {/* 👇 BOTÓN CANCELAR LIMPIA BASURA 👇 */}
+                <SecondaryButton type="button" onClick={handleCancelEditClub}>
+                  Cancelar
+                </SecondaryButton>
+              </div>
             </form>
           </div>
         </div>
@@ -861,13 +998,13 @@ export default function App() {
                       players={players}
                       events={events}
                       perms={perms}
-                      goals={goals} // 👈 AÑADIDO: Pasamos las metas a la pantalla de jugadores
+                      goals={goals}
                     />
                   )}
                   {item.key === "finanzas" && (
                     <Finances
-                      transactions={transactions as any} // 👈 Agregamos "as any"
-                      players={players as any} // 👈 Agregamos "as any"
+                      transactions={transactions as any}
+                      players={players as any}
                       perms={perms}
                     />
                   )}

@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Edit, MapPin, Users, Plus, Trash2, Camera } from "lucide-react";
+import {
+  Edit,
+  MapPin,
+  Users,
+  Plus,
+  Trash2,
+  Camera,
+  UploadCloud,
+} from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
+import {
+  getStorage,
+  ref,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
+import imageCompression from "browser-image-compression";
 import { db } from "../../hooks/useClubData";
 import {
   C,
@@ -29,17 +45,20 @@ export default function HeroSection({
   const [editClubName, setEditClubName] = useState(clubInfo.name || "");
   const [editClubDesc, setEditClubDesc] = useState(clubInfo.description || "");
 
-  // 👇 MEJORA 2: Ubicación dinámica (con fallback a Guaymas por defecto)
   const [editLocation, setEditLocation] = useState(
     clubInfo.location || "Guaymas, Sonora",
   );
 
-  // 👇 MEJORA 1: Arreglo dinámico en lugar de un texto gigante
   const [editHeroImages, setEditHeroImages] = useState<string[]>(
     clubInfo.heroImages?.length > 0 ? clubInfo.heroImages : [""],
   );
 
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
+
+  // 👇 CAMBIO CLAVE: Ahora guardamos el NÚMERO de la fila que está subiendo (o null si ninguna)
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
+
+  const [newlyUploadedImages, setNewlyUploadedImages] = useState<string[]>([]);
 
   const heroTouchStartX = useRef<number | null>(null);
   const heroTouchEndX = useRef<number | null>(null);
@@ -48,7 +67,6 @@ export default function HeroSection({
     ? players.filter((p: any) => p.active !== false).length
     : 0;
 
-  // ── AUTO ROTACIÓN DEL CARRUSEL DE PORTADA ──
   useEffect(() => {
     if (
       !clubInfo.heroImages ||
@@ -62,7 +80,6 @@ export default function HeroSection({
     return () => clearTimeout(timer);
   }, [clubInfo.heroImages, isEditingClubInfo, currentHeroIndex]);
 
-  // ── GESTOS TÁCTILES DE LA PORTADA ──
   const handleHeroTouchStart = (e: React.TouchEvent) => {
     heroTouchEndX.current = null;
     heroTouchStartX.current = e.targetTouches[0].clientX;
@@ -99,7 +116,6 @@ export default function HeroSection({
     });
   };
 
-  // ── GESTIÓN DE LA LISTA DE IMÁGENES ──
   const handleUpdateImage = (index: number, value: string) => {
     const newImages = [...editHeroImages];
     newImages[index] = value;
@@ -114,13 +130,91 @@ export default function HeroSection({
     setEditHeroImages(editHeroImages.filter((_, i) => i !== index));
   };
 
+  const handleFileUpload = async (index: number, file: File) => {
+    if (!file) return;
+    try {
+      // 👇 Indicamos qué fila exacta se está subiendo
+      setUploadingIndex(index);
+
+      const options = {
+        maxSizeMB: 0.15,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        initialQuality: 0.7,
+      };
+
+      const compressedFile = await imageCompression(file, options);
+
+      const storage = getStorage();
+      const fileRef = ref(
+        storage,
+        `portada/hero_${Date.now()}_${compressedFile.name}`,
+      );
+
+      await uploadBytes(fileRef, compressedFile);
+      const url = await getDownloadURL(fileRef);
+
+      setNewlyUploadedImages((prev) => [...prev, url]);
+
+      const newImages = [...editHeroImages];
+      newImages[index] = url;
+      setEditHeroImages(newImages);
+    } catch (error) {
+      console.error("Error subiendo imagen:", error);
+      alert("Error al subir la imagen.");
+    } finally {
+      // 👇 Apagamos el indicador al terminar
+      setUploadingIndex(null);
+    }
+  };
+
+  const handleCancelEdit = async () => {
+    if (newlyUploadedImages.length > 0) {
+      const storage = getStorage();
+      for (const urlToDelete of newlyUploadedImages) {
+        try {
+          const fileRef = ref(storage, urlToDelete);
+          await deleteObject(fileRef);
+          console.log("Archivo cancelado eliminado con éxito:", urlToDelete);
+        } catch (error) {
+          console.error("No se pudo eliminar el archivo cancelado:", error);
+        }
+      }
+    }
+
+    setNewlyUploadedImages([]);
+    setIsEditingClubInfo(false);
+  };
+
   const handleSaveClubInfo = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Filtramos los inputs vacíos
     const validImages = editHeroImages
       .map((url) => url.trim())
       .filter((url) => url !== "");
+
+    const oldImages = clubInfo.heroImages || [];
+    const allTrackedImages = [...oldImages, ...newlyUploadedImages];
+
+    const imagesToDelete = allTrackedImages.filter((trackedUrl: string) => {
+      return (
+        !validImages.includes(trackedUrl) &&
+        trackedUrl.includes("firebasestorage.googleapis.com")
+      );
+    });
+
+    if (imagesToDelete.length > 0) {
+      const storage = getStorage();
+      for (const urlToDelete of imagesToDelete) {
+        try {
+          const fileRef = ref(storage, urlToDelete);
+          await deleteObject(fileRef);
+          console.log("Archivo huérfano eliminado con éxito:", urlToDelete);
+        } catch (error) {
+          console.error("No se pudo eliminar el archivo huérfano:", error);
+        }
+      }
+    }
 
     await setDoc(
       doc(db, "settings", "club_info"),
@@ -128,7 +222,7 @@ export default function HeroSection({
         ...clubInfo,
         name: editClubName.trim(),
         description: editClubDesc.trim(),
-        location: editLocation.trim(), // Guardamos la ubicación
+        location: editLocation.trim(),
         heroImages:
           validImages.length > 0
             ? validImages
@@ -138,6 +232,8 @@ export default function HeroSection({
       },
       { merge: true },
     );
+
+    setNewlyUploadedImages([]);
     setCurrentHeroIndex(0);
     setIsEditingClubInfo(false);
   };
@@ -162,6 +258,7 @@ export default function HeroSection({
             setEditHeroImages(
               clubInfo.heroImages?.length > 0 ? clubInfo.heroImages : [""],
             );
+            setNewlyUploadedImages([]);
             setIsEditingClubInfo(true);
           }}
           style={{
@@ -268,7 +365,6 @@ export default function HeroSection({
               />
             </div>
 
-            {/* 👇 MEJORA 1: Listado dinámico de fotos tipo Galería 👇 */}
             <div
               style={{
                 display: "flex",
@@ -300,7 +396,6 @@ export default function HeroSection({
                     border: `1px solid ${C.gray200}`,
                   }}
                 >
-                  {/* Vista previa miniatura inteligente */}
                   <div
                     style={{
                       position: "relative",
@@ -343,21 +438,59 @@ export default function HeroSection({
                     )}
                   </div>
 
-                  <input
-                    type="url"
-                    value={url}
-                    onChange={(e) => handleUpdateImage(index, e.target.value)}
-                    placeholder="Link de la imagen..."
-                    required={index === 0} // La primera es obligatoria
+                  <div
                     style={{
                       flex: 1,
-                      border: "none",
-                      outline: "none",
-                      fontSize: "0.8125rem",
-                      color: C.navy900,
-                      backgroundColor: "transparent",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.4rem",
                     }}
-                  />
+                  >
+                    <input
+                      type="url"
+                      value={url}
+                      onChange={(e) => handleUpdateImage(index, e.target.value)}
+                      placeholder="Pega un link de imagen..."
+                      required={index === 0 && !url}
+                      style={{
+                        flex: 1,
+                        border: "none",
+                        outline: "none",
+                        fontSize: "0.8125rem",
+                        color: C.navy900,
+                        backgroundColor: "transparent",
+                      }}
+                    />
+                    <label
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        color: C.amber,
+                        fontSize: "0.7rem",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        width: "fit-content",
+                      }}
+                    >
+                      <UploadCloud size={14} />
+                      {/* 👇 Solo la fila actual muestra "Subiendo..." 👇 */}
+                      {uploadingIndex === index
+                        ? "Subiendo..."
+                        : "Subir desde dispositivo"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploadingIndex !== null}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleFileUpload(index, e.target.files[0]);
+                          }
+                        }}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  </div>
 
                   {editHeroImages.length > 1 && (
                     <button
@@ -400,13 +533,17 @@ export default function HeroSection({
             </div>
 
             <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-              <PrimaryButton type="submit" style={{ flex: 1 }}>
-                Guardar Portada
-              </PrimaryButton>
-              <SecondaryButton
-                type="button"
-                onClick={() => setIsEditingClubInfo(false)}
+              {/* 👇 El botón principal se bloquea si hay cualquier carga activa 👇 */}
+              <PrimaryButton
+                type="submit"
+                style={{ flex: 1, opacity: uploadingIndex !== null ? 0.7 : 1 }}
+                disabled={uploadingIndex !== null}
               >
+                {uploadingIndex !== null
+                  ? "Cargando imagen..."
+                  : "Guardar Portada"}
+              </PrimaryButton>
+              <SecondaryButton type="button" onClick={handleCancelEdit}>
                 Cancelar
               </SecondaryButton>
             </div>
@@ -414,7 +551,6 @@ export default function HeroSection({
         </div>
       ) : (
         <>
-          {/* CARRUSEL CON IMAGEN COMPLETA (contain) */}
           <div
             style={{
               position: "relative",
@@ -448,7 +584,6 @@ export default function HeroSection({
               />
             ))}
 
-            {/* Degradado inferior */}
             <div
               style={{
                 position: "absolute",
@@ -462,7 +597,6 @@ export default function HeroSection({
               }}
             />
 
-            {/* Indicadores */}
             {clubInfo.heroImages?.length > 1 && (
               <div
                 style={{
@@ -475,18 +609,17 @@ export default function HeroSection({
                   gap: "0.4rem",
                   zIndex: 20,
                 }}
-                onClick={(e) => e.stopPropagation()} // Para que no abra el modal si tocan cerca
+                onClick={(e) => e.stopPropagation()}
               >
                 {clubInfo.heroImages.map((_: any, idx: number) => (
                   <div
                     key={idx}
-                    // 👇 MEJORA 3: Puntitos clickables
                     onClick={(e) => {
-                      e.stopPropagation(); // Evita abrir la imagen en grande
+                      e.stopPropagation();
                       setCurrentHeroIndex(idx);
                     }}
                     style={{
-                      width: "12px", // Un poco más grandes para que sean fáciles de tocar
+                      width: "12px",
                       height: "12px",
                       borderRadius: "50%",
                       backgroundColor:
@@ -494,7 +627,7 @@ export default function HeroSection({
                           ? C.white
                           : "rgba(255,255,255,0.4)",
                       transition: "background-color 0.3s ease",
-                      cursor: "pointer", // Cursor de manita
+                      cursor: "pointer",
                       boxShadow: "0 2px 4px rgba(0,0,0,0.5)",
                     }}
                   />
@@ -503,7 +636,6 @@ export default function HeroSection({
             )}
           </div>
 
-          {/* Información del club */}
           <div
             style={{
               padding: "1.75rem 1.5rem",
