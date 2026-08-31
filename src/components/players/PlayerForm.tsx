@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Users, UploadCloud, Camera } from "lucide-react";
 import {
   SectionCard,
@@ -87,6 +87,15 @@ export default function PlayerForm({
   const [isUploading, setIsUploading] = useState(false);
   const [newlyUploadedPhotos, setNewlyUploadedPhotos] = useState<string[]>([]);
 
+  // 👇 NUEVO: Memoria para recordar la foto original que tenía en la BD 👇
+  const originalImageRef = useRef<string>("");
+
+  useEffect(() => {
+    // Al abrir el modo edición, guardamos cuál era su foto original
+    originalImageRef.current = playerImageUrl;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingPlayerId]);
+
   // 👇 FUNCIÓN MAGIA: Comprime, Sube a Firebase y guarda el Link 👇
   const handlePhotoUpload = async (file: File) => {
     if (!file) return;
@@ -139,7 +148,7 @@ export default function PlayerForm({
     onCancel(); // Llamamos a la función original que viene de `Players.tsx`
   };
 
-  // 👇 SOBREESCRIBIMOS EL SUBMIT PARA LIMPIAR LAS FOTOS "INTENTADAS" Y BORRAR LA VIEJA 👇
+  // 👇 AHORA SÍ: BORRA LAS INTENTADAS Y LA ORIGINAL VIEJA 👇
   const handleSubmitWithCleanup = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -148,17 +157,34 @@ export default function PlayerForm({
       (url) => url !== playerImageUrl,
     );
 
-    // Además, si el jugador ya tenía una foto vieja (firebasestorage) y subió una nueva,
-    // debemos borrar la vieja para no llenar la nube de basura (si te parece bien).
-    // Nota: Esta parte se ejecuta asíncronamente para no retrasar la experiencia del usuario.
     const cleanUpTask = async () => {
       const storage = getStorage();
+
+      // 1. Borrar los intentos fallidos de la sesión actual
       for (const url of orphanedPhotos) {
         try {
           await deleteObject(ref(storage, url));
         } catch (err) {}
       }
+
+      // 2. Borrar la foto ORIGINAL si fue cambiada o eliminada
+      const oldImage = originalImageRef.current;
+      if (
+        oldImage &&
+        oldImage !== playerImageUrl &&
+        oldImage.includes("firebasestorage.googleapis.com")
+      ) {
+        try {
+          await deleteObject(ref(storage, oldImage));
+          console.log(
+            "Foto vieja del jugador eliminada exitosamente del Storage.",
+          );
+        } catch (err) {
+          console.error("No se pudo borrar la foto vieja del Storage", err);
+        }
+      }
     };
+
     cleanUpTask();
 
     // Dejamos que `Players.tsx` guarde los datos en la base de datos

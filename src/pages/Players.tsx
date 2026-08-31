@@ -17,14 +17,7 @@ import {
   updateDoc,
 } from "firebase/firestore";
 import { db } from "../hooks/useClubData";
-import {
-  C,
-  RADIUS,
-  SHADOWS,
-  SectionCard,
-  FormInput,
-  StatBox,
-} from "../components/ui";
+import { C, RADIUS, SHADOWS, SectionCard, FormInput } from "../components/ui";
 import { CompareModal } from "../components/AppComponents";
 
 import PlayerForm from "../components/players/PlayerForm";
@@ -32,7 +25,6 @@ import PlayerRow from "../components/players/PlayerRow";
 import PlayerModal from "../components/players/PlayerModal";
 import { usePlayerStats } from "../hooks/usePlayerStats";
 
-// 👇 AÑADIDO: Recibimos 'goals' por los props
 export default function Players({ players, events, perms, goals }: any) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
@@ -115,12 +107,20 @@ export default function Players({ players, events, perms, goals }: any) {
       await deleteDoc(doc(db, "players", id));
   };
 
-  // 👇 AÑADIDO: Pasamos 'goals' al hook
   const { clubPlayerStats, selectedPlayerAchievements } = usePlayerStats(
     players,
     events,
     selectedPlayer,
     goals,
+  );
+
+  const activePlayersCount = useMemo(
+    () => players.filter((p: any) => p.active !== false).length,
+    [players],
+  );
+  const inactivePlayersCount = useMemo(
+    () => players.filter((p: any) => p.active === false).length,
+    [players],
   );
 
   const positionCounts = useMemo(() => {
@@ -154,6 +154,15 @@ export default function Players({ players, events, perms, goals }: any) {
     });
   }, [players, searchTerm, positionFilter]);
 
+  const filterOptions = [
+    { label: "Todos", count: activePlayersCount },
+    { label: "Portero", count: positionCounts.Portero },
+    { label: "Defensa", count: positionCounts.Defensa },
+    { label: "Medio", count: positionCounts.Medio },
+    { label: "Delantero", count: positionCounts.Delantero },
+    { label: "Inactivos", count: inactivePlayersCount },
+  ];
+
   return (
     <div
       style={{
@@ -163,34 +172,207 @@ export default function Players({ players, events, perms, goals }: any) {
         animation: "fadeIn 0.3s ease",
       }}
     >
+      {/* ── PLANTILLA ACTIVA (RESUMEN TÁCTICO MINIMALISTA) ── */}
       <SectionCard title="Plantilla Activa" icon={<Users size={16} />}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
-            gap: "0.75rem",
-          }}
-        >
-          <StatBox
-            icon={<Hand size={16} color={C.navy600} />}
-            label="Porteros"
-            value={positionCounts.Portero}
-          />
-          <StatBox
-            icon={<Shield size={16} color={C.navy600} />}
-            label="Defensas"
-            value={positionCounts.Defensa}
-          />
-          <StatBox
-            icon={<Target size={16} color={C.navy600} />}
-            label="Medios"
-            value={positionCounts.Medio}
-          />
-          <StatBox
-            icon={<Goal size={16} color={C.navy600} />}
-            label="Delanteros"
-            value={positionCounts.Delantero}
-          />
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: "700",
+                color: C.gray500,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              Distribución de Plantilla
+            </span>
+            <span
+              style={{
+                fontSize: "0.8125rem",
+                fontWeight: "800",
+                color: C.navy900,
+              }}
+            >
+              {activePlayersCount} Registrados
+            </span>
+          </div>
+
+          {/* Barra de Proporción Limpia */}
+          <div
+            style={{
+              display: "flex",
+              height: "8px",
+              borderRadius: RADIUS.full,
+              overflow: "hidden",
+              backgroundColor: C.gray100,
+            }}
+          >
+            {activePlayersCount > 0 ? (
+              <>
+                <div
+                  style={{
+                    flex: positionCounts.Portero,
+                    backgroundColor: C.amber,
+                  }}
+                  title={`Porteros: ${positionCounts.Portero}`}
+                />
+                <div
+                  style={{
+                    flex: positionCounts.Defensa,
+                    backgroundColor: "#3b82f6",
+                  }}
+                  title={`Defensas: ${positionCounts.Defensa}`}
+                />
+                <div
+                  style={{
+                    flex: positionCounts.Medio,
+                    backgroundColor: C.green,
+                  }}
+                  title={`Medios: ${positionCounts.Medio}`}
+                />
+                <div
+                  style={{
+                    flex: positionCounts.Delantero,
+                    backgroundColor: C.red || "#ef4444",
+                  }}
+                  title={`Delanteros: ${positionCounts.Delantero}`}
+                />
+              </>
+            ) : (
+              <div style={{ flex: 1, backgroundColor: C.gray200 }} />
+            )}
+          </div>
+
+          {/* Estadísticas en Línea */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "0.5rem",
+              textAlign: "center",
+              paddingTop: "0.25rem",
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: C.gray50,
+                padding: "0.5rem",
+                borderRadius: RADIUS.sm,
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.65rem",
+                  fontWeight: "700",
+                  color: C.gray500,
+                  textTransform: "uppercase",
+                }}
+              >
+                Porteros
+              </span>
+              <span
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: "800",
+                  color: C.navy900,
+                }}
+              >
+                {positionCounts.Portero}
+              </span>
+            </div>
+            <div
+              style={{
+                backgroundColor: C.gray50,
+                padding: "0.5rem",
+                borderRadius: RADIUS.sm,
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.65rem",
+                  fontWeight: "700",
+                  color: C.gray500,
+                  textTransform: "uppercase",
+                }}
+              >
+                Defensas
+              </span>
+              <span
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: "800",
+                  color: C.navy900,
+                }}
+              >
+                {positionCounts.Defensa}
+              </span>
+            </div>
+            <div
+              style={{
+                backgroundColor: C.gray50,
+                padding: "0.5rem",
+                borderRadius: RADIUS.sm,
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.65rem",
+                  fontWeight: "700",
+                  color: C.gray500,
+                  textTransform: "uppercase",
+                }}
+              >
+                Medios
+              </span>
+              <span
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: "800",
+                  color: C.navy900,
+                }}
+              >
+                {positionCounts.Medio}
+              </span>
+            </div>
+            <div
+              style={{
+                backgroundColor: C.gray50,
+                padding: "0.5rem",
+                borderRadius: RADIUS.sm,
+              }}
+            >
+              <span
+                style={{
+                  display: "block",
+                  fontSize: "0.65rem",
+                  fontWeight: "700",
+                  color: C.gray500,
+                  textTransform: "uppercase",
+                }}
+              >
+                Delantes
+              </span>
+              <span
+                style={{
+                  fontSize: "1.1rem",
+                  fontWeight: "800",
+                  color: C.navy900,
+                }}
+              >
+                {positionCounts.Delantero}
+              </span>
+            </div>
+          </div>
         </div>
       </SectionCard>
 
@@ -219,7 +401,7 @@ export default function Players({ players, events, perms, goals }: any) {
         />
       )}
 
-      {/* 👇 Título en string, ícono nativo 👇 */}
+      {/* ── PLANTILLA OFICIAL ── */}
       <SectionCard title="Plantilla Oficial" icon={<Trophy size={16} />}>
         <div
           style={{
@@ -229,9 +411,16 @@ export default function Players({ players, events, perms, goals }: any) {
             marginBottom: "1.25rem",
           }}
         >
-          {/* 👇 FILA: BARRA DE BÚSQUEDA + BOTÓN DE COMPARAR 👇 */}
-          <div style={{ display: "flex", gap: "0.5rem", width: "100%" }}>
-            <div style={{ position: "relative", flex: 1 }}>
+          {/* BÚSQUEDA + COMPARAR */}
+          <div
+            style={{
+              display: "flex",
+              gap: "0.5rem",
+              width: "100%",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={{ position: "relative", flex: "1 1 200px" }}>
               <Search
                 size={16}
                 color={C.gray400}
@@ -268,6 +457,7 @@ export default function Players({ players, events, perms, goals }: any) {
                   cursor: "pointer",
                   boxShadow: SHADOWS.sm,
                   whiteSpace: "nowrap",
+                  height: "36px",
                 }}
               >
                 <ArrowRightLeft size={14} /> Comparar
@@ -275,49 +465,61 @@ export default function Players({ players, events, perms, goals }: any) {
             )}
           </div>
 
+          {/* FILTROS TIPO CHIP LIMPIOS */}
           <div
-            className="hide-scroll"
             style={{
               display: "flex",
+              flexWrap: "wrap",
               gap: "0.4rem",
-              overflowX: "auto",
-              paddingBottom: "0.25rem",
+              marginTop: "0.25rem",
             }}
           >
-            {[
-              "Todos",
-              "Portero",
-              "Defensa",
-              "Medio",
-              "Delantero",
-              "Inactivos",
-            ].map((pos) => (
-              <button
-                key={pos}
-                type="button"
-                onClick={() => setPositionFilter(pos)}
-                style={{
-                  padding: "0.35rem 0.75rem",
-                  borderRadius: RADIUS.full,
-                  fontSize: "0.75rem",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  border: `1px solid ${positionFilter === pos ? (pos === "Inactivos" ? C.red : C.navy900) : C.gray300}`,
-                  backgroundColor:
-                    positionFilter === pos
-                      ? pos === "Inactivos"
+            {filterOptions.map(({ label, count }) => {
+              const isSelected = positionFilter === label;
+              const isInactiveBtn = label === "Inactivos";
+
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setPositionFilter(label)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    padding: "0.3rem 0.65rem",
+                    borderRadius: RADIUS.full,
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    border: `1px solid ${isSelected ? (isInactiveBtn ? C.red : C.navy900) : C.gray200}`,
+                    backgroundColor: isSelected
+                      ? isInactiveBtn
                         ? C.red
                         : C.navy900
                       : C.white,
-                  color: positionFilter === pos ? C.white : C.gray600,
-                  transition: "all 0.2s ease",
-                }}
-              >
-                {pos}
-              </button>
-            ))}
+                    color: isSelected ? C.white : C.gray600,
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  {label}
+                  <span
+                    style={{
+                      backgroundColor: isSelected
+                        ? "rgba(255,255,255,0.2)"
+                        : C.gray100,
+                      color: isSelected ? C.white : C.gray500,
+                      padding: "1px 5px",
+                      borderRadius: RADIUS.full,
+                      fontSize: "0.6rem",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -334,7 +536,7 @@ export default function Players({ players, events, perms, goals }: any) {
           </p>
         ) : (
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+            style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
           >
             {filteredPlayers.map((player: any) => (
               <PlayerRow

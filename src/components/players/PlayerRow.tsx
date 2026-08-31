@@ -1,6 +1,6 @@
 import React from "react";
-import { Edit, Trash2 } from "lucide-react";
-import { C, RADIUS, Badge } from "../../components/ui"; // 👈 Añadí Badge aquí
+import { Edit, Trash2, LayoutTemplate } from "lucide-react";
+import { C, RADIUS, Badge } from "../../components/ui";
 import { isBirthdayToday } from "../../utils/helpers";
 
 interface PlayerRowProps {
@@ -21,7 +21,19 @@ export default function PlayerRow({
   onDelete,
 }: PlayerRowProps) {
   const isBday = isBirthdayToday(player.birthDate);
-  const isActive = player.active !== false; // 👈 NUEVO: Validación de estado activo
+  const isActive = player.active !== false;
+
+  // Color sutil para el indicador de posición
+  const positionColor =
+    player.position === "Portero"
+      ? C.amber
+      : player.position === "Defensa"
+        ? "#3b82f6"
+        : player.position === "Medio"
+          ? C.green
+          : player.position === "Delantero"
+            ? C.red || "#ef4444"
+            : C.gray500;
 
   return (
     <div
@@ -31,33 +43,33 @@ export default function PlayerRow({
         justifyContent: "space-between",
         alignItems: "center",
         padding: "0.875rem 1rem",
-        border: `1px solid ${isBday && isActive ? C.amber : C.gray200}`, // 👈 Sin borde dorado si es baja
+        border: `1px solid ${C.gray200}`,
         borderRadius: RADIUS.md,
-        backgroundColor: !isActive ? C.gray50 : isBday ? C.amberLight : C.white, // 👈 Fondo grisáceo si es baja
-        opacity: isActive ? 1 : 0.7, // 👈 Se atenúa si está inactivo
+        backgroundColor: !isActive ? C.gray50 : C.white,
+        opacity: isActive ? 1 : 0.6,
         cursor: "pointer",
-        transition: "all 0.2s",
+        transition: "background-color 0.2s ease",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.875rem" }}>
-        {/* Contenedor de la foto con posición relativa para la insignia */}
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        {/* ── FOTO SIMPLE CON BADGE PEQUEÑO ── */}
         <div style={{ position: "relative", display: "inline-flex" }}>
           <img
             src={
               player.imageUrl ||
               `https://ui-avatars.com/api/?name=${encodeURIComponent(
                 player.name,
-              )}&background=102a43&color=fff`
+              )}&background=102a43&color=fff&size=100`
             }
             alt={player.name}
             loading="lazy"
             decoding="async"
             style={{
-              width: "44px",
-              height: "44px",
+              width: "42px",
+              height: "42px",
               borderRadius: "50%",
               objectFit: "cover",
-              filter: isActive ? "none" : "grayscale(100%)", // 👈 Foto en blanco y negro si es baja
+              filter: isActive ? "none" : "grayscale(100%)",
             }}
             onError={(e) => {
               e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
@@ -66,52 +78,51 @@ export default function PlayerRow({
             }}
           />
 
-          {/* Insignia flotante para Director Técnico */}
           {player.isDT && (
-            <span
-              title="Director Técnico"
+            <div
+              title="Cuerpo Técnico"
               style={{
                 position: "absolute",
-                top: "-6px",
-                right: "-6px",
-                width: "20px",
-                height: "20px",
-                backgroundColor: C.amber,
+                top: "-2px",
+                right: "-4px",
+                backgroundColor: C.navy900,
                 borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "0.7rem",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-                border: "2px solid white",
+                padding: "2px",
+                border: `2px solid ${C.white}`,
               }}
             >
-              📋
-            </span>
+              <LayoutTemplate size={10} color={C.amber} />
+            </div>
           )}
         </div>
 
-        <div>
+        {/* ── INFO CLARA Y ORDENADA ── */}
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}
+        >
           <p
             style={{
               margin: 0,
               fontWeight: "700",
+              fontSize: "0.95rem",
               color: isActive ? C.navy900 : C.gray500,
             }}
           >
-            {player.name} {isBday && isActive && "🍰"}
+            {player.name}{" "}
+            {isBday && isActive && <span title="¡Cumpleaños!">🎂</span>}
           </p>
-          <p
+
+          <div
             style={{
               margin: 0,
-              fontSize: "0.75rem",
-              color: C.navy500,
               display: "flex",
               alignItems: "center",
-              gap: "0.3rem",
+              gap: "0.4rem",
+              fontSize: "0.75rem",
+              color: C.gray500,
+              fontWeight: "500",
             }}
           >
-            {/* 👇 NUEVO: Etiqueta roja de Baja */}
             {!isActive && (
               <Badge
                 color="red"
@@ -120,19 +131,53 @@ export default function PlayerRow({
                 Baja
               </Badge>
             )}
-            <span>
-              {player.isDT ? "Cuerpo Técnico" : `#${player.number}`}
-              {!player.isDT && ` • ${player.position}`}
-              {player.variant ? ` (${player.variant})` : ""}
-            </span>
-          </p>
+
+            {player.isDT ? (
+              <span style={{ color: C.navy600, fontWeight: "600" }}>
+                Cuerpo Técnico
+              </span>
+            ) : (
+              <>
+                <span style={{ fontWeight: "700", color: C.navy700 }}>
+                  #{player.number !== "S/N" ? player.number : "-"}
+                </span>
+                <span>•</span>
+
+                {/* Indicador de posición limpio (Puntito + Texto) */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.25rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "50%",
+                      backgroundColor: positionColor,
+                    }}
+                  />
+                  <span>{player.position}</span>
+                </div>
+
+                {player.variant && (
+                  <>
+                    <span>•</span>
+                    <span>{player.variant}</span>
+                  </>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Acciones de Edición/Borrado */}
+      {/* ── ACCIONES DISCRETAS ── */}
       {(canEditAll || isPressOnly) && (
         <div
-          style={{ display: "flex", gap: "0.5rem" }}
+          style={{ display: "flex", gap: "0.75rem" }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
@@ -142,8 +187,9 @@ export default function PlayerRow({
             style={{
               background: "none",
               border: "none",
-              color: C.navy600,
+              color: C.gray400,
               cursor: "pointer",
+              padding: "4px",
             }}
           >
             <Edit size={16} />
@@ -157,8 +203,9 @@ export default function PlayerRow({
               style={{
                 background: "none",
                 border: "none",
-                color: C.red,
+                color: C.gray400,
                 cursor: "pointer",
+                padding: "4px",
               }}
             >
               <Trash2 size={16} />
