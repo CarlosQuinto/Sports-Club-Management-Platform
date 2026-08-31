@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Users, UploadCloud, Camera } from "lucide-react";
+import { Users, UploadCloud, Camera, Link as LinkIcon } from "lucide-react";
 import {
   SectionCard,
   FormInput,
@@ -7,6 +7,8 @@ import {
   PrimaryButton,
   SecondaryButton,
   RADIUS,
+  SHADOWS,
+  C,
 } from "../../components/ui";
 
 // 👇 IMPORTACIONES DE STORAGE Y COMPRESIÓN 👇
@@ -19,18 +21,42 @@ import {
 } from "firebase/storage";
 import imageCompression from "browser-image-compression";
 
-// Si tu proyecto ya exporta una constante de colores `C`, importa esa en su lugar.
-const C = {
-  navy900: "#1e3a8a",
-  gray500: "#6b7280",
-  gray300: "#d1d5db",
-  green: "#10b981",
-  amber: "#f59e0b",
-  gray200: "#e5e7eb",
-  gray50: "#f9fafb",
-  white: "#ffffff",
-  red: "#ef4444",
-};
+// ── COMPONENTE SWITCH (SLIDER) PERSONALIZADO ──
+const ToggleSwitch = ({
+  checked,
+  onChange,
+  disabled,
+  activeColor = C.green,
+}: any) => (
+  <div
+    onClick={() => !disabled && onChange(!checked)}
+    style={{
+      width: "46px",
+      height: "26px",
+      backgroundColor: checked ? activeColor : C.gray300,
+      borderRadius: RADIUS.full,
+      position: "relative",
+      cursor: disabled ? "not-allowed" : "pointer",
+      transition: "background-color 0.25s ease",
+      opacity: disabled ? 0.6 : 1,
+      flexShrink: 0,
+    }}
+  >
+    <div
+      style={{
+        width: "22px",
+        height: "22px",
+        backgroundColor: C.white,
+        borderRadius: "50%",
+        position: "absolute",
+        top: "2px",
+        left: checked ? "22px" : "2px",
+        transition: "left 0.25s ease",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+      }}
+    />
+  </div>
+);
 
 interface PlayerFormProps {
   isPressOnly: boolean;
@@ -79,30 +105,24 @@ export default function PlayerForm({
 }: PlayerFormProps) {
   const title = editingPlayerId
     ? isPressOnly
-      ? "Actualizar Foto del Jugador"
+      ? "Actualizar Foto"
       : "Editar Jugador"
     : "Fichar Jugador";
 
-  // 👇 ESTADOS PARA SUBIDA EN LA SECCIÓN PRINCIPAL 👇
   const [isUploading, setIsUploading] = useState(false);
   const [newlyUploadedPhotos, setNewlyUploadedPhotos] = useState<string[]>([]);
-
-  // 👇 NUEVO: Memoria para recordar la foto original que tenía en la BD 👇
   const originalImageRef = useRef<string>("");
 
   useEffect(() => {
-    // Al abrir el modo edición, guardamos cuál era su foto original
     originalImageRef.current = playerImageUrl;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingPlayerId]);
 
-  // 👇 FUNCIÓN MAGIA: Comprime, Sube a Firebase y guarda el Link 👇
   const handlePhotoUpload = async (file: File) => {
     if (!file) return;
     try {
       setIsUploading(true);
 
-      // Opciones para foto de perfil: Más pequeña y ultra ligera (Máximo 100 KB y 800px)
       const options = {
         maxSizeMB: 0.1,
         maxWidthOrHeight: 800,
@@ -120,9 +140,8 @@ export default function PlayerForm({
       await uploadBytes(fileRef, compressedFile);
       const url = await getDownloadURL(fileRef);
 
-      // Rastreamos la foto subida en caso de que el usuario decida darle a "Cancelar"
       setNewlyUploadedPhotos((prev) => [...prev, url]);
-      setPlayerImageUrl(url); // Actualizamos el estado que se irá a la BD
+      setPlayerImageUrl(url);
     } catch (error) {
       console.error("Error subiendo foto:", error);
       alert("Error al subir la imagen. Verifica tu conexión.");
@@ -131,28 +150,22 @@ export default function PlayerForm({
     }
   };
 
-  // 👇 SOBREESCRIBIMOS EL CANCELAR PARA LIMPIAR BASURA 👇
   const handleCancelWithCleanup = async () => {
     if (newlyUploadedPhotos.length > 0) {
       const storage = getStorage();
       for (const url of newlyUploadedPhotos) {
         try {
           await deleteObject(ref(storage, url));
-          console.log("Foto temporal del jugador eliminada");
-        } catch (e) {
-          console.error("Error limpiando foto temporal", e);
-        }
+        } catch (e) {}
       }
     }
     setNewlyUploadedPhotos([]);
-    onCancel(); // Llamamos a la función original que viene de `Players.tsx`
+    onCancel();
   };
 
-  // 👇 AHORA SÍ: BORRA LAS INTENTADAS Y LA ORIGINAL VIEJA 👇
   const handleSubmitWithCleanup = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Si subió fotos y se quedó con la última, las anteriores de esta misma sesión son basura
     const orphanedPhotos = newlyUploadedPhotos.filter(
       (url) => url !== playerImageUrl,
     );
@@ -160,14 +173,12 @@ export default function PlayerForm({
     const cleanUpTask = async () => {
       const storage = getStorage();
 
-      // 1. Borrar los intentos fallidos de la sesión actual
       for (const url of orphanedPhotos) {
         try {
           await deleteObject(ref(storage, url));
         } catch (err) {}
       }
 
-      // 2. Borrar la foto ORIGINAL si fue cambiada o eliminada
       const oldImage = originalImageRef.current;
       if (
         oldImage &&
@@ -176,28 +187,23 @@ export default function PlayerForm({
       ) {
         try {
           await deleteObject(ref(storage, oldImage));
-          console.log(
-            "Foto vieja del jugador eliminada exitosamente del Storage.",
-          );
-        } catch (err) {
-          console.error("No se pudo borrar la foto vieja del Storage", err);
-        }
+        } catch (err) {}
       }
     };
 
     cleanUpTask();
 
-    // Dejamos que `Players.tsx` guarde los datos en la base de datos
     onSubmit(e);
-    setNewlyUploadedPhotos([]); // Limpiamos para el próximo fichaje
+    setNewlyUploadedPhotos([]);
   };
 
   return (
     <SectionCard title={title} icon={<Users size={16} />}>
       <form
         onSubmit={handleSubmitWithCleanup}
-        style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+        style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}
       >
+        {/* FILA 1: NOMBRE Y DORSAL */}
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <FormInput
             required
@@ -205,7 +211,7 @@ export default function PlayerForm({
             value={playerName}
             onChange={(e) => setPlayerName(e.target.value)}
             placeholder="Nombre completo"
-            style={{ flex: 2 }}
+            style={{ flex: "1 1 200px" }}
           />
           <FormInput
             type="number"
@@ -214,70 +220,74 @@ export default function PlayerForm({
             value={playerNumber}
             onChange={(e) => setPlayerNumber(e.target.value)}
             placeholder="Dorsal"
-            style={{ flex: 1 }}
+            style={{ width: "90px", flexShrink: 0 }}
           />
         </div>
 
+        {/* FILA 2: POSICIÓN, VARIANTE Y FECHA */}
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <FormSelect
             disabled={isPressOnly}
             value={playerPosition}
             onChange={(e) => setPlayerPosition(e.target.value)}
-            style={{ flex: 1 }}
+            style={{ flex: "1 1 120px" }}
           >
             <option value="Portero">Portero</option>
             <option value="Defensa">Defensa</option>
             <option value="Medio">Medio</option>
             <option value="Delantero">Delantero</option>
           </FormSelect>
+
           <FormInput
             disabled={isPressOnly}
             value={playerVariant}
             onChange={(e) => setPlayerVariant(e.target.value)}
-            placeholder="Variante (Ej. Central)"
-            style={{ flex: 1 }}
+            placeholder="Variante (Ej. Extremo)"
+            style={{ flex: "1 1 140px" }}
+          />
+
+          <FormInput
+            type="date"
+            disabled={isPressOnly}
+            value={playerBirthDate}
+            onChange={(e) => setPlayerBirthDate(e.target.value)}
+            placeholder="Nacimiento"
+            style={{ flex: "1 1 140px" }}
           />
         </div>
 
-        <FormInput
-          type="date"
-          disabled={isPressOnly}
-          value={playerBirthDate}
-          onChange={(e) => setPlayerBirthDate(e.target.value)}
-          placeholder="Fecha de nacimiento (opcional)"
-        />
-
-        {/* 👇 NUEVA SECCIÓN DE FOTO DE PERFIL 👇 */}
+        {/* ── ZONA DE FOTO ── */}
         <div
           style={{
             display: "flex",
-            gap: "0.5rem",
+            gap: "1rem",
             alignItems: "center",
-            backgroundColor: C.white,
-            padding: "0.5rem",
+            backgroundColor: C.gray50,
+            padding: "1rem",
             borderRadius: RADIUS.md,
-            border: `1px solid ${C.gray200}`,
-            marginTop: "0.2rem",
+            border: `1px dashed ${C.gray300}`,
+            marginTop: "0.25rem",
           }}
         >
-          {/* Vista previa miniatura */}
+          {/* Avatar Circular Grande */}
           <div
             style={{
               position: "relative",
-              width: "42px",
-              height: "42px",
-              backgroundColor: C.gray50,
-              borderRadius: RADIUS.sm,
+              width: "60px",
+              height: "60px",
+              backgroundColor: C.white,
+              borderRadius: "50%",
               color: C.gray300,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               overflow: "hidden",
               flexShrink: 0,
-              border: `1px solid ${C.gray200}`,
+              border: `2px solid ${playerImageUrl ? C.green : C.gray200}`,
+              boxShadow: SHADOWS.sm,
             }}
           >
-            <Camera size={18} style={{ position: "absolute", zIndex: 0 }} />
+            <Camera size={24} style={{ position: "absolute", zIndex: 0 }} />
             {playerImageUrl && (
               <img
                 src={playerImageUrl}
@@ -290,12 +300,6 @@ export default function PlayerForm({
                   zIndex: 1,
                   backgroundColor: C.white,
                 }}
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-                onLoad={(e) => {
-                  e.currentTarget.style.display = "block";
-                }}
               />
             )}
           </div>
@@ -305,39 +309,29 @@ export default function PlayerForm({
               flex: 1,
               display: "flex",
               flexDirection: "column",
-              gap: "0.4rem",
+              gap: "0.5rem",
             }}
           >
-            <input
-              type="url"
-              value={playerImageUrl}
-              onChange={(e) => setPlayerImageUrl(e.target.value)}
-              placeholder="Link de foto de perfil (Opcional)"
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                fontSize: "0.8125rem",
-                color: C.navy900,
-                backgroundColor: "transparent",
-              }}
-            />
-
-            {/* Botón Mágico Subir desde Dispositivo */}
             <label
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "0.3rem",
-                color: C.amber,
-                fontSize: "0.7rem",
+                gap: "0.4rem",
+                backgroundColor: C.white,
+                border: `1px solid ${C.gray200}`,
+                padding: "0.4rem 0.75rem",
+                borderRadius: RADIUS.md,
+                color: C.navy900,
+                fontSize: "0.8125rem",
                 fontWeight: "700",
-                cursor: "pointer",
+                cursor: isUploading ? "not-allowed" : "pointer",
                 width: "fit-content",
+                boxShadow: SHADOWS.sm,
+                transition: "all 0.2s",
               }}
             >
-              <UploadCloud size={14} />
-              {isUploading ? "Procesando foto..." : "Subir desde dispositivo"}
+              <UploadCloud size={16} color={C.amber} />
+              {isUploading ? "Optimizando imagen..." : "Subir desde galería"}
               <input
                 type="file"
                 accept="image/*"
@@ -350,78 +344,145 @@ export default function PlayerForm({
                 style={{ display: "none" }}
               />
             </label>
+
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}
+            >
+              <LinkIcon size={12} color={C.gray400} />
+              <input
+                type="url"
+                value={playerImageUrl}
+                onChange={(e) => setPlayerImageUrl(e.target.value)}
+                placeholder="O pega un enlace de internet aquí..."
+                style={{
+                  flex: 1,
+                  border: "none",
+                  borderBottom: `1px solid ${C.gray300}`,
+                  outline: "none",
+                  fontSize: "0.75rem",
+                  color: C.gray600,
+                  backgroundColor: "transparent",
+                  padding: "0.2rem 0",
+                }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* CONTENEDOR DE CHECKBOXES (DT Y ACTIVO) */}
+        {/* ── AJUSTES DEL JUGADOR (SLIDERS) ── */}
         <div
           style={{
             display: "flex",
-            gap: "1rem",
-            flexWrap: "wrap",
+            flexDirection: "column",
+            gap: "0.5rem",
             marginTop: "0.25rem",
           }}
         >
-          <label
+          {/* SWITCH CUERPO TÉCNICO */}
+          <div
             style={{
               display: "flex",
+              justifyContent: "space-between",
               alignItems: "center",
-              gap: "0.5rem",
-              fontSize: "0.875rem",
-              fontWeight: "600",
-              color: C.navy900,
-              cursor: "pointer",
+              padding: "0.75rem",
+              backgroundColor: C.gray50,
+              borderRadius: RADIUS.md,
+              border: `1px solid ${C.gray200}`,
             }}
           >
-            <input
-              type="checkbox"
-              disabled={isPressOnly}
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span
+                style={{
+                  fontSize: "0.875rem",
+                  fontWeight: "700",
+                  color: C.navy900,
+                }}
+              >
+                Cuerpo Técnico
+              </span>
+              <span
+                style={{
+                  fontSize: "0.7rem",
+                  color: C.gray500,
+                  lineHeight: 1.3,
+                }}
+              >
+                Este integrante forma parte del staff técnico (DT, Auxiliar).
+              </span>
+            </div>
+            <ToggleSwitch
               checked={isDT}
-              onChange={(e) => setIsDT(e.target.checked)}
-              style={{ width: "1rem", height: "1rem", cursor: "pointer" }}
-            />
-            DT
-          </label>
-
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              fontSize: "0.875rem",
-              fontWeight: "600",
-              color: playerActive ? C.navy900 : C.gray500,
-              cursor: "pointer",
-            }}
-          >
-            <input
-              type="checkbox"
+              onChange={setIsDT}
               disabled={isPressOnly}
-              checked={playerActive}
-              onChange={(e) => setPlayerActive(e.target.checked)}
-              style={{
-                accentColor: C.green,
-                width: "1rem",
-                height: "1rem",
-                cursor: "pointer",
-              }}
+              activeColor={C.navy900}
             />
-            Activo
-          </label>
+          </div>
+
+          {/* 👇 SWITCH ESTADO ACTIVO (SOLO EN MODO EDICIÓN) 👇 */}
+          {editingPlayerId && (
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "0.75rem",
+                backgroundColor: playerActive
+                  ? "rgba(16,185,129,0.05)"
+                  : "rgba(239,68,68,0.05)",
+                borderRadius: RADIUS.md,
+                border: `1px solid ${playerActive ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}`,
+              }}
+            >
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span
+                  style={{
+                    fontSize: "0.875rem",
+                    fontWeight: "700",
+                    color: playerActive ? C.green : C.red,
+                  }}
+                >
+                  {playerActive ? "Jugador Activo" : "Baja Temporal"}
+                </span>
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    color: C.gray500,
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {playerActive
+                    ? "Está disponible para convocatorias y eventos."
+                    : "No aparecerá en listas para pasar asistencia."}
+                </span>
+              </div>
+              <ToggleSwitch
+                checked={playerActive}
+                onChange={setPlayerActive}
+                disabled={isPressOnly}
+                activeColor={C.green}
+              />
+            </div>
+          )}
         </div>
 
-        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.25rem" }}>
+        {/* BOTONES DE ACCIÓN */}
+        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
           <PrimaryButton
             type="submit"
-            style={{ flex: 1, opacity: isUploading ? 0.7 : 1 }}
+            style={{
+              flex: 1,
+              opacity: isUploading ? 0.7 : 1,
+              padding: "0.875rem",
+            }}
             disabled={isUploading}
           >
             {isUploading
               ? "Cargando..."
               : editingPlayerId
                 ? "Guardar Cambios"
-                : "Agregar"}
+                : "Confirmar Fichaje"}
           </PrimaryButton>
+
           {editingPlayerId && (
             <SecondaryButton
               type="button"

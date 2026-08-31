@@ -1,6 +1,13 @@
 import React from "react";
-import { LayoutList, Trash2, Users } from "lucide-react";
-import { C, SectionCard } from "../../components/ui";
+import {
+  LayoutList,
+  Trash2,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Receipt,
+} from "lucide-react";
+import { C, SectionCard, RADIUS } from "../../components/ui";
 import { formatCurrency, isPlayerPayment } from "../finances/helpers";
 import { formatFriendlyDate } from "../../utils/helpers";
 import { Transaction } from "../finances/types";
@@ -19,91 +26,170 @@ export function TransactionHistory({
   return (
     <SectionCard
       title="Historial de Movimientos"
-      icon={<LayoutList size={14} color={C.navy600} />}
+      icon={<LayoutList size={16} color={C.navy900} />}
     >
       {transactions.length === 0 ? (
-        <p style={{ textAlign: "center", color: C.gray400, margin: "1rem 0" }}>
-          Aún no hay movimientos.
-        </p>
+        <div
+          style={{
+            padding: "2rem 0",
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "0.5rem",
+          }}
+        >
+          <Receipt size={32} color={C.gray300} />
+          <p
+            style={{
+              color: C.gray500,
+              margin: 0,
+              fontWeight: "500",
+              fontSize: "0.875rem",
+            }}
+          >
+            Aún no hay movimientos registrados.
+          </p>
+        </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
-          {transactions.map((tx) => (
-            <div
-              key={tx.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                padding: "0.5rem 0",
-                borderBottom: `1px solid ${C.gray100}`,
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    margin: 0,
-                    fontWeight: "600",
-                    color: C.navy900,
-                    fontSize: "0.8rem",
-                  }}
-                >
-                  {tx.description}
-                </p>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: "0.65rem",
-                    color: C.gray400,
-                    marginTop: "0.1rem",
-                  }}
-                >
-                  {tx.category} • {formatFriendlyDate(tx.date)}
-                </p>
-              </div>
+        <div
+          style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+        >
+          {transactions.map((tx, index) => {
+            const isIncome = tx.type === "ingreso";
+            const isPlayer = isPlayerPayment(tx.id);
+            const isLast = index === transactions.length - 1;
+
+            // Lógica del Avatar visual
+            let IconComponent = isIncome ? ArrowUpRight : ArrowDownRight;
+            let iconColor = isIncome ? C.green : C.navy600;
+            let iconBg = isIncome ? "rgba(16, 185, 129, 0.1)" : C.gray100;
+
+            if (isPlayer) {
+              IconComponent = Users;
+              iconColor = C.navy900;
+              iconBg = C.navy50;
+            }
+
+            return (
               <div
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                key={tx.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "0.875rem 0",
+                  borderBottom: isLast ? "none" : `1px solid ${C.gray100}`,
+                  transition: "background-color 0.2s ease",
+                }}
               >
-                <span
+                {/* ── IZQUIERDA: Avatar + Info ── */}
+                <div
                   style={{
-                    fontWeight: "700",
-                    fontSize: "0.8rem",
-                    color: tx.type === "ingreso" ? C.green : C.navy900,
-                    fontFamily: "'Inter', monospace",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.875rem",
                   }}
                 >
-                  {tx.type === "ingreso" ? "+" : "-"}
-                  {formatCurrency(tx.amount)}
-                </span>
-                {canEdit && !isPlayerPayment(tx.id) && (
-                  <button
-                    onClick={() => onDelete(tx.id)}
+                  {/* Avatar del Movimiento */}
+                  <div
                     style={{
-                      background: "none",
-                      border: "none",
-                      color: C.red,
-                      cursor: "pointer",
-                      opacity: 0.5,
-                      padding: 0,
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "50%",
+                      backgroundColor: iconBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
                     }}
                   >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-                {canEdit && isPlayerPayment(tx.id) && (
+                    <IconComponent size={18} color={iconColor} />
+                  </div>
+
+                  {/* Textos */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "0.1rem",
+                    }}
+                  >
+                    <span
+                      style={{
+                        margin: 0,
+                        fontWeight: "700",
+                        color: C.navy900,
+                        fontSize: "0.875rem",
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      {tx.description}
+                    </span>
+                    <span
+                      style={{
+                        margin: 0,
+                        fontSize: "0.7rem",
+                        color: C.gray500,
+                        fontWeight: "500",
+                      }}
+                    >
+                      {tx.category} • {formatFriendlyDate(tx.date)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ── DERECHA: Monto + Acción ── */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.75rem",
+                  }}
+                >
                   <span
                     style={{
-                      fontSize: "0.65rem",
-                      color: C.gray300,
-                      width: "14px",
-                      textAlign: "center",
+                      fontWeight: "800",
+                      fontSize: "0.875rem",
+                      color: isIncome ? C.green : C.navy900,
+                      fontFamily: "'Inter', monospace",
+                      letterSpacing: "-0.02em",
                     }}
                   >
-                    <Users size={12} />
+                    {isIncome ? "+" : "-"}
+                    {formatCurrency(tx.amount)}
                   </span>
-                )}
+
+                  {/* Botón de Borrar (Oculto si es pago de jugador) */}
+                  {canEdit && !isPlayer && (
+                    <button
+                      onClick={() => onDelete(tx.id)}
+                      title="Eliminar movimiento"
+                      style={{
+                        background: "rgba(239, 68, 68, 0.05)",
+                        border: "none",
+                        color: C.red,
+                        cursor: "pointer",
+                        padding: "0.35rem",
+                        borderRadius: RADIUS.md,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+
+                  {/* Si es un pago de jugador, ponemos un espaciador para alinear los montos */}
+                  {canEdit && isPlayer && (
+                    <div style={{ width: "26px" }} /> // Mismo ancho que el botón de borrar
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </SectionCard>

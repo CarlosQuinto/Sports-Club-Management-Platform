@@ -10,7 +10,7 @@ import {
   Hand,
   Target,
 } from "lucide-react";
-import { C, RADIUS, SHADOWS, StatBox } from "../../components/ui";
+import { C, RADIUS, SHADOWS } from "../../components/ui";
 import { calculateAge } from "../../utils/helpers";
 import TrophyCase, { Achievement } from "./TrophyCase";
 
@@ -29,7 +29,6 @@ export default function PlayerModal({
 }: PlayerModalProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Bloquear scroll del fondo y manejar tecla Escape
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -49,12 +48,10 @@ export default function PlayerModal({
 
   if (!player || !pStats) return null;
 
-  // Normalización de datos
   const isDT = Boolean(player.isDT);
   const isGoalkeeper = player.position?.trim().toLowerCase() === "portero";
-  const isActive = player.active !== false; // 👈 NUEVO: Validación de estado activo
+  const isActive = player.active !== false;
 
-  // Estadísticas con valores por defecto
   const {
     goals = 0,
     assists = 0,
@@ -68,6 +65,64 @@ export default function PlayerModal({
     matchesManaged = 0,
     winsManaged = 0,
   } = pStats || {};
+
+  const positionColor =
+    player.position === "Portero"
+      ? C.amber
+      : player.position === "Defensa"
+        ? "#3b82f6"
+        : player.position === "Medio"
+          ? C.green
+          : player.position === "Delantero"
+            ? C.red || "#ef4444"
+            : C.gray500;
+
+  // 👇 COMPONENTE INTERNO: LA CAJA PREMIUM (OPCIÓN 1) 👇
+  const PremiumStatBox = ({
+    icon,
+    label,
+    value,
+    valueColor = C.navy900,
+  }: any) => (
+    <div
+      style={{
+        backgroundColor: C.gray50,
+        border: `1px solid ${C.gray200}`,
+        borderRadius: RADIUS.lg,
+        padding: "0.875rem 0.25rem",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.02)", // Sombra súper sutil
+      }}
+    >
+      <div style={{ color: C.gray500, marginBottom: "0.4rem" }}>{icon}</div>
+      <span
+        style={{
+          fontSize: "1.35rem",
+          fontWeight: "900",
+          color: isActive ? valueColor : C.gray500,
+          lineHeight: 1,
+        }}
+      >
+        {value}
+      </span>
+      <span
+        style={{
+          fontSize: "0.55rem",
+          fontWeight: "800",
+          color: C.gray500,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginTop: "0.3rem",
+          textAlign: "center",
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
 
   const modalContent = (
     <div
@@ -83,354 +138,336 @@ export default function PlayerModal({
         justifyContent: "center",
         alignItems: "center",
         padding: "1rem",
+        animation: "fadeIn 0.2s ease",
       }}
       onClick={onClose}
     >
       <div
         style={{
           position: "relative",
-          maxWidth: "450px",
+          maxWidth: "420px",
           width: "100%",
           backgroundColor: C.white,
           borderRadius: RADIUS.xl,
-          padding: "clamp(1.5rem, 5vw, 2.5rem) clamp(1rem, 4vw, 2rem)",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
           boxShadow: SHADOWS.xl,
           maxHeight: "95vh",
           overflowY: "auto",
           overscrollBehavior: "contain",
         }}
         onClick={(e) => e.stopPropagation()}
+        className="hide-scroll"
       >
-        {/* BOTÓN DE CERRAR */}
-        <button
-          ref={closeButtonRef}
-          onClick={onClose}
-          aria-label="Cerrar modal"
+        {/* ── CABECERA PREMIUM (BANNER OSCURO) ── */}
+        <div
           style={{
-            position: "absolute",
-            top: "1rem",
-            right: "1rem",
-            background: "none",
-            border: "none",
-            color: C.gray400,
-            cursor: "pointer",
+            background: `linear-gradient(135deg, ${C.navy900} 0%, #0f172a 100%)`,
+            height: "100px",
+            width: "100%",
+            borderTopLeftRadius: RADIUS.xl,
+            borderTopRightRadius: RADIUS.xl,
+            position: "relative",
           }}
         >
-          <X size={24} />
-        </button>
-
-        {/* FOTO DE PERFIL CON INSIGNIA DT FLOTANTE */}
-        <div style={{ position: "relative", display: "inline-block" }}>
-          <img
-            src={
-              player.imageUrl ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                player.name,
-              )}&background=102a43&color=fff&size=200&bold=true`
-            }
-            alt={player.name}
-            loading="lazy"
-            decoding="async"
-            onError={(e) => {
-              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                player.name,
-              )}&background=102a43&color=fff&size=200&bold=true`;
-            }}
+          <button
+            ref={closeButtonRef}
+            onClick={onClose}
+            aria-label="Cerrar modal"
             style={{
-              width: "min(140px, 35vw)",
-              height: "min(140px, 35vw)",
+              position: "absolute",
+              top: "1rem",
+              right: "1rem",
+              background: "rgba(255,255,255,0.15)",
+              border: "none",
               borderRadius: "50%",
-              objectFit: "cover",
-              border: `4px solid ${!isActive ? C.gray200 : isDT ? C.amberLight : C.gray100}`, // 👈 Borde gris si está inactivo
-              boxShadow: SHADOWS.md,
-              marginBottom: "1.5rem",
-              backgroundColor: C.navy900,
-              filter: isActive ? "none" : "grayscale(100%)", // 👈 NUEVO: Filtro gris para inactivos
+              color: C.white,
+              cursor: "pointer",
+              padding: "0.4rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backdropFilter: "blur(4px)",
             }}
-          />
-
-          {isDT && (
-            <span
-              title="Director Técnico"
-              style={{
-                position: "absolute",
-                top: "-2px",
-                right: "-2px",
-                width: "28px",
-                height: "28px",
-                backgroundColor: C.amber,
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "0.9rem",
-                border: "2px solid white",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-              }}
-            >
-              📋
-            </span>
-          )}
+          >
+            <X size={18} />
+          </button>
         </div>
 
-        {/* NOMBRE */}
-        <h2
-          id="modal-player-name"
-          style={{
-            margin: "0 0 0.25rem 0",
-            fontSize: "1.625rem",
-            fontWeight: "800",
-            color: isActive ? C.navy900 : C.gray500, // 👈 Color atenuado si es baja
-            textAlign: "center",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {player.name}
-        </h2>
-
-        {/* DORSAL Y POSICIÓN (PÍLDORA) */}
+        {/* ── INFO DEL JUGADOR (AVATAR MONTADO) ── */}
         <div
           style={{
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            gap: "0.75rem",
-            marginTop: "0.5rem",
-            backgroundColor: C.navy50,
-            padding: "0.5rem 1.25rem",
-            borderRadius: RADIUS.full,
-            flexWrap: "wrap",
-            justifyContent: "center",
+            padding: "0 1.5rem",
+            marginTop: "-55px",
           }}
         >
-          {/* 👈 NUEVO: Etiqueta de INACTIVO */}
-          {!isActive && (
-            <>
-              <span
+          <div style={{ position: "relative", display: "inline-block" }}>
+            <img
+              src={
+                player.imageUrl ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(player.name)}&background=102a43&color=fff&size=200&bold=true`
+              }
+              alt={player.name}
+              loading="lazy"
+              decoding="async"
+              style={{
+                width: "110px",
+                height: "110px",
+                borderRadius: "50%",
+                objectFit: "cover",
+                border: `4px solid ${C.white}`,
+                boxShadow: SHADOWS.md,
+                backgroundColor: C.white,
+                filter: isActive ? "none" : "grayscale(100%)",
+              }}
+            />
+            {isActive && !isDT && (
+              <div
                 style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "800",
-                  color: C.red,
-                }}
-              >
-                INACTIVO
-              </span>
-              <span
-                style={{
-                  width: "1px",
-                  height: "16px",
-                  backgroundColor: C.navy200,
+                  position: "absolute",
+                  inset: "-2px",
+                  borderRadius: "50%",
+                  border: `2px solid ${positionColor}`,
+                  zIndex: -1,
                 }}
               />
-            </>
-          )}
+            )}
+            {isDT && (
+              <span
+                title="Director Técnico"
+                style={{
+                  position: "absolute",
+                  bottom: "5px",
+                  right: "0px",
+                  width: "28px",
+                  height: "28px",
+                  backgroundColor: C.amber,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "0.9rem",
+                  border: "2px solid white",
+                  boxShadow: SHADOWS.sm,
+                }}
+              >
+                📋
+              </span>
+            )}
+          </div>
 
-          {!isDT && (
-            <>
+          <h2
+            id="modal-player-name"
+            style={{
+              margin: "0.75rem 0 0.25rem 0",
+              fontSize: "1.5rem",
+              fontWeight: "900",
+              color: isActive ? C.navy900 : C.gray500,
+              textAlign: "center",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {player.name}
+          </h2>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+              marginTop: "0.25rem",
+              flexWrap: "wrap",
+              justifyContent: "center",
+            }}
+          >
+            {!isActive && (
               <span
                 style={{
-                  fontSize: "1.25rem",
+                  fontSize: "0.7rem",
                   fontWeight: "800",
+                  color: C.red,
+                  backgroundColor: "rgba(239,68,68,0.1)",
+                  padding: "2px 8px",
+                  borderRadius: RADIUS.full,
+                }}
+              >
+                BAJA
+              </span>
+            )}
+
+            {!isDT && (
+              <span
+                style={{
+                  fontSize: "0.85rem",
+                  fontWeight: "900",
                   color: C.navy900,
                 }}
               >
                 #{player.number}
               </span>
-              <span
-                style={{
-                  width: "1px",
-                  height: "16px",
-                  backgroundColor: C.navy200,
-                }}
-              />
-            </>
-          )}
-          <span
-            style={{
-              fontSize: "0.8125rem",
-              fontWeight: "600",
-              color: isDT ? C.amber : C.navy600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            {isDT ? "Director Técnico" : player.position}{" "}
-            {player.variant ? ` • ${player.variant}` : ""}
-          </span>
+            )}
+            {!isDT && <span style={{ color: C.gray300 }}>•</span>}
 
-          {player.birthDate && (
-            <>
-              <span
-                style={{
-                  width: "1px",
-                  height: "16px",
-                  backgroundColor: C.navy200,
-                }}
-              />
-              <span
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "700",
-                  color: C.navy600,
-                }}
-                title={`Fecha de nacimiento: ${player.birthDate}`}
-              >
-                {calculateAge(player.birthDate)} años
-              </span>
-            </>
-          )}
+            <span
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: "700",
+                color: isDT ? C.amber : positionColor,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {isDT ? "Cuerpo Técnico" : player.position}{" "}
+              {player.variant && `- ${player.variant}`}
+            </span>
+
+            {player.birthDate && (
+              <>
+                <span style={{ color: C.gray300 }}>•</span>
+                <span
+                  style={{
+                    fontSize: "0.75rem",
+                    fontWeight: "600",
+                    color: C.gray500,
+                  }}
+                >
+                  {calculateAge(player.birthDate)} años
+                </span>
+              </>
+            )}
+          </div>
         </div>
 
-        {/* ESTADÍSTICAS DE TEMPORADA */}
-        <div
-          style={{
-            width: "100%",
-            marginTop: "2rem",
-            borderTop: `2px dashed ${C.gray100}`,
-            paddingTop: "1.5rem",
-          }}
-        >
+        {/* ── RENDIMIENTO HISTÓRICO (CAJAS ORDENADAS) ── */}
+        <div style={{ padding: "1.5rem", width: "100%" }}>
           <p
             style={{
               margin: "0 0 1rem 0",
               textAlign: "center",
-              fontWeight: "600",
-              color: C.gray500,
+              fontWeight: "800",
+              color: C.gray400,
               textTransform: "uppercase",
               letterSpacing: "0.1em",
               fontSize: "0.6875rem",
             }}
           >
-            Rendimiento histórico
+            Rendimiento Histórico
           </p>
 
-          {/* ── SECCIÓN DE DT ── */}
-          {isDT && (
+          {isDT ? (
             <div
               style={{
-                marginBottom: "0.75rem",
-                padding: "0.75rem",
-                backgroundColor: "#FFFBEB",
-                borderRadius: RADIUS.md,
-                border: `1px solid ${C.amber}`,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "0.75rem",
               }}
             >
-              <p
-                style={{
-                  margin: "0 0 0.5rem 0",
-                  textAlign: "center",
-                  fontWeight: "700",
-                  color: C.amber,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  fontSize: "0.625rem",
-                }}
-              >
-                👔 Banquillo Técnico
-              </p>
+              <PremiumStatBox
+                icon={<span style={{ fontSize: "18px" }}>📋</span>}
+                label="Partidos Dirigidos"
+                value={matchesManaged}
+              />
+              <PremiumStatBox
+                icon={<span style={{ fontSize: "18px" }}>🏆</span>}
+                label="Victorias"
+                value={winsManaged}
+                valueColor={C.amber}
+              />
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+              }}
+            >
+              {/* Bloques Principales (3 Columnas) */}
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "repeat(3, 1fr)",
                   gap: "0.75rem",
                 }}
               >
-                <StatBox
-                  icon={<span style={{ fontSize: "18px" }}>📋</span>}
-                  label="Partidos Dirigidos"
-                  value={matchesManaged}
+                <PremiumStatBox
+                  icon={<Trophy size={18} />}
+                  label="Partidos"
+                  value={matchesAttended}
                 />
-                <StatBox
-                  icon={<span style={{ fontSize: "18px" }}>🏆</span>}
-                  label="Victorias como DT"
-                  value={winsManaged}
+                {isGoalkeeper ? (
+                  <>
+                    <PremiumStatBox
+                      icon={<Hand size={18} />}
+                      label="Goles Recib."
+                      value={goalsConceded}
+                    />
+                    <PremiumStatBox
+                      icon={<Shield size={18} />}
+                      label="Arcos Cero"
+                      value={cleanSheets}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <PremiumStatBox
+                      icon={<Goal size={18} />}
+                      label="Goles"
+                      value={goals}
+                    />
+                    <PremiumStatBox
+                      icon={<TrendingUp size={18} />}
+                      label="Asistencias"
+                      value={assists}
+                    />
+                  </>
+                )}
+              </div>
+
+              {/* Bloques Secundarios (4 Columnas) */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: "0.5rem",
+                }}
+              >
+                <PremiumStatBox
+                  icon={<Target size={16} />}
+                  label="Prácticas"
+                  value={trainingsAttended}
+                />
+                <PremiumStatBox
+                  icon={<Star size={16} fill={C.amber} color={C.amber} />}
+                  label="MVPs"
+                  value={mvps}
                   valueColor={C.amber}
+                />
+                <PremiumStatBox
+                  icon={<span style={{ fontSize: "14px" }}>🟨</span>}
+                  label="Amarillas"
+                  value={yellowCards}
+                />
+                <PremiumStatBox
+                  icon={<span style={{ fontSize: "14px" }}>🟥</span>}
+                  label="Rojas"
+                  value={redCards}
+                  valueColor={C.red}
                 />
               </div>
             </div>
           )}
-
-          {/* ESTADÍSTICAS PRINCIPALES (JUGADOR / PORTERO) */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "0.75rem",
-              marginBottom: "0.75rem",
-            }}
-          >
-            {isGoalkeeper ? (
-              <>
-                <StatBox
-                  icon={<Hand size={20} color={C.navy600} />}
-                  label="Goles Recibidos"
-                  value={goalsConceded}
-                />
-                <StatBox
-                  icon={<Shield size={20} color={C.navy600} />}
-                  label="Arcos en Cero"
-                  value={cleanSheets}
-                />
-              </>
-            ) : (
-              <>
-                <StatBox
-                  icon={<Goal size={20} color={C.navy600} />}
-                  label="Goles Anotados"
-                  value={goals}
-                />
-                <StatBox
-                  icon={<TrendingUp size={20} color={C.navy600} />}
-                  label="Asistencias"
-                  value={assists}
-                />
-              </>
-            )}
-            <StatBox
-              icon={<Target size={20} color={C.navy600} />}
-              label="Entrenamientos"
-              value={trainingsAttended}
-            />
-            <StatBox
-              icon={<Trophy size={20} color={C.navy600} />}
-              label="Partidos Jugados"
-              value={matchesAttended}
-            />
-          </div>
-
-          {/* ESTADÍSTICAS DE TARJETAS Y MVPS (No mostradas para DTs) */}
-          {!isDT && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: "0.5rem",
-              }}
-            >
-              <StatBox
-                icon={<Star size={16} color={C.amber} fill={C.amber} />}
-                label="MVPs"
-                value={mvps}
-                valueColor={C.amber}
-              />
-              <StatBox
-                icon={<span style={{ fontSize: "16px" }}>🟨</span>}
-                label="Amarillas"
-                value={yellowCards}
-              />
-              <StatBox
-                icon={<span style={{ fontSize: "16px" }}>🟥</span>}
-                label="Rojas"
-                value={redCards}
-              />
-            </div>
-          )}
         </div>
 
-        {/* VITRINA DE TROFEOS */}
-        {!isDT && <TrophyCase achievements={achievements} />}
+        {/* ── VITRINA DE TROFEOS (CON SCROLL INTERNO YA APLICADO) ── */}
+        {!isDT && (
+          <div style={{ padding: "0 1.5rem 1.5rem 1.5rem" }}>
+            <TrophyCase achievements={achievements} />
+          </div>
+        )}
       </div>
     </div>
   );

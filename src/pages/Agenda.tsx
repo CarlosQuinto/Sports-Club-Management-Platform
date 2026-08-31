@@ -1,5 +1,14 @@
 import React, { useState } from "react";
-import { Trophy, Target, TrendingUp, TrendingDown } from "lucide-react";
+import {
+  Trophy,
+  Target,
+  TrendingUp,
+  TrendingDown,
+  CalendarDays,
+  History,
+  CalendarX,
+  Archive,
+} from "lucide-react";
 import {
   collection,
   addDoc,
@@ -9,7 +18,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../hooks/useClubData";
-import { C, StatBox } from "../components/ui";
+import { C, StatBox, SectionCard, RADIUS } from "../components/ui";
 import { useAgendaData } from "../hooks/useAgendaData";
 
 // ── COMPONENTES GENERALES ──
@@ -33,7 +42,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     "Partido",
   );
   const [eventTitle, setEventTitle] = useState("");
-  // ✅ CAMBIO: Inicia como array
   const [eventRoutine, setEventRoutine] = useState<any[]>([]);
   const [eventDate, setEventDate] = useState(
     new Date().toISOString().split("T")[0],
@@ -71,7 +79,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     const data = {
       eventType,
       title: eventTitle,
-      // ✅ CAMBIO: Guardamos el array, no un string
       routine: eventType === "Entrenamiento" ? eventRoutine : [],
       eventDate,
       eventTime,
@@ -89,7 +96,7 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     }
     setEventTitle("");
     setEventLocation("");
-    setEventRoutine([]); // ✅ CAMBIO: limpieza con array
+    setEventRoutine([]);
   };
 
   const handleDelete = async (id: string) => {
@@ -122,41 +129,48 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "2rem",
+        gap: "1.5rem",
         animation: "fadeIn 0.3s ease",
       }}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
-          gap: "0.75rem",
-        }}
-      >
-        <StatBox
-          icon={<Trophy size={20} color={C.navy600} />}
-          label="Jugados"
-          value={statsClub.jugados}
-        />
-        <StatBox
-          icon={<TrendingUp size={20} color={C.green} />}
-          label="Ganados"
-          value={statsClub.ganados}
-          valueColor={C.green}
-        />
-        <StatBox
-          icon={<TrendingDown size={20} color={C.red} />}
-          label="Perdidos"
-          value={statsClub.perdidos}
-          valueColor={C.red}
-        />
-        <StatBox
-          icon={<Target size={20} color={C.navy600} />}
-          label="Entrenamientos"
-          value={statsClub.entrenamientos}
-        />
-      </div>
+      {/* ── 1. BALANCE DE TEMPORADA ── */}
+      <SectionCard title="Rendimiento del Equipo" icon={<Trophy size={16} />}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          {/* Cuadrícula de Estadísticas */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))",
+              gap: "0.75rem",
+            }}
+          >
+            <StatBox
+              icon={<Trophy size={18} color={C.navy600} />}
+              label="Jugados"
+              value={statsClub.jugados}
+            />
+            <StatBox
+              icon={<TrendingUp size={18} color={C.green} />}
+              label="Ganados"
+              value={statsClub.ganados}
+              valueColor={C.green}
+            />
+            <StatBox
+              icon={<TrendingDown size={18} color={C.red} />}
+              label="Perdidos"
+              value={statsClub.perdidos}
+              valueColor={C.red}
+            />
+            <StatBox
+              icon={<Target size={18} color={C.navy600} />}
+              label="Entrenamientos"
+              value={statsClub.entrenamientos}
+            />
+          </div>
+        </div>
+      </SectionCard>
 
+      {/* ── 2. FORMULARIO DE EVENTOS ── */}
       <EventForm
         perms={perms}
         editingEventId={editingEventId}
@@ -177,84 +191,118 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
           setEditingEventId(null);
           setEventTitle("");
           setEventLocation("");
-          setEventRoutine([]); // ✅ CAMBIO: limpieza con array
+          setEventRoutine([]);
         }}
       />
 
-      <div>
-        <h2
-          style={{
-            fontSize: "1rem",
-            fontWeight: "700",
-            marginBottom: "1rem",
-            color: C.navy900,
-          }}
-        >
-          Próximos compromisos
-        </h2>
+      {/* ── 3. PRÓXIMOS COMPROMISOS ── */}
+      <SectionCard
+        title="Próximos Compromisos"
+        icon={<CalendarDays size={16} />}
+      >
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-          {nextEvents.map((ev: any) => (
-            <EventCard
-              key={ev.id}
-              ev={ev}
-              players={players}
-              perms={perms}
-              isHighlighted={highlightedEventId === ev.id}
-              onDelete={() => handleDelete(ev.id)}
-              onEdit={() => {
-                setEditingEventId(ev.id);
-                setEventTitle(ev.title);
-                setEventType(ev.eventType);
-                setEventDate(ev.eventDate);
-                setEventTime(ev.eventTime);
-                setEventLocation(ev.location);
-                // ✅ CAMBIO: migración de string viejo a array estructurado
-                if (typeof ev.routine === "string" && ev.routine) {
-                  setEventRoutine([
-                    {
-                      type: "phase",
-                      id: Date.now().toString(),
-                      title: "Rutina Guardada",
-                      exercises: [
-                        { id: "1", name: ev.routine, duration: "", link: "" },
-                      ],
-                    },
-                  ]);
-                } else {
-                  setEventRoutine(ev.routine || []);
-                }
-                window.scrollTo({ top: 0, behavior: "smooth" });
+          {nextEvents.length === 0 ? (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                padding: "2rem 0",
+                opacity: 0.5,
               }}
-              onOpenAttendance={() => setAttendanceModalEvent(ev)}
-              onOpenLineup={() => setLineupModalEvent(ev)}
-              onImageClick={(data: any) => setLightboxData(data)}
-              onEditPhoto={(id: string) =>
-                setAlbumModalEvent(events.find((e: any) => e.id === id))
-              }
-              onOpenArbitration={() => setArbitrationModalEvent(ev)}
-            />
-          ))}
+            >
+              <CalendarX
+                size={36}
+                color={C.gray400}
+                style={{ marginBottom: "0.5rem" }}
+              />
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: C.gray500,
+                  margin: 0,
+                  fontWeight: "500",
+                }}
+              >
+                No hay partidos ni entrenamientos en puerta.
+              </p>
+            </div>
+          ) : (
+            nextEvents.map((ev: any) => (
+              <EventCard
+                key={ev.id}
+                ev={ev}
+                players={players}
+                perms={perms}
+                isHighlighted={highlightedEventId === ev.id}
+                onDelete={() => handleDelete(ev.id)}
+                onEdit={() => {
+                  setEditingEventId(ev.id);
+                  setEventTitle(ev.title);
+                  setEventType(ev.eventType);
+                  setEventDate(ev.eventDate);
+                  setEventTime(ev.eventTime);
+                  setEventLocation(ev.location);
+                  if (typeof ev.routine === "string" && ev.routine) {
+                    setEventRoutine([
+                      {
+                        type: "phase",
+                        id: Date.now().toString(),
+                        title: "Rutina Guardada",
+                        exercises: [
+                          { id: "1", name: ev.routine, duration: "", link: "" },
+                        ],
+                      },
+                    ]);
+                  } else {
+                    setEventRoutine(ev.routine || []);
+                  }
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                onOpenAttendance={() => setAttendanceModalEvent(ev)}
+                onOpenLineup={() => setLineupModalEvent(ev)}
+                onImageClick={(data: any) => setLightboxData(data)}
+                onEditPhoto={(id: string) =>
+                  setAlbumModalEvent(events.find((e: any) => e.id === id))
+                }
+                onOpenArbitration={() => setArbitrationModalEvent(ev)}
+              />
+            ))
+          )}
         </div>
-      </div>
+      </SectionCard>
 
-      <div>
-        <h2
-          style={{
-            fontSize: "1rem",
-            fontWeight: "700",
-            marginBottom: "1rem",
-            color: C.gray500,
-          }}
-        >
-          Historial de Resultados
-        </h2>
+      {/* ── 4. HISTORIAL DE RESULTADOS ── */}
+      <SectionCard title="Historial de Resultados" icon={<History size={16} />}>
         <div
-          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+          style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
         >
           {pastEvents.length === 0 ? (
-            <p style={{ fontSize: "0.875rem", color: C.gray400 }}>
-              Aún no hay eventos pasados.
-            </p>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                padding: "2rem 0",
+                opacity: 0.5,
+              }}
+            >
+              <Archive
+                size={36}
+                color={C.gray400}
+                style={{ marginBottom: "0.5rem" }}
+              />
+              <p
+                style={{
+                  fontSize: "0.875rem",
+                  color: C.gray500,
+                  margin: 0,
+                  fontWeight: "500",
+                }}
+              >
+                Aún no hay eventos pasados registrados.
+              </p>
+            </div>
           ) : (
             pastEvents
               .sort(
@@ -296,8 +344,9 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
               ))
           )}
         </div>
-      </div>
+      </SectionCard>
 
+      {/* ── MODALES (Sin cambios) ── */}
       {attendanceModalEvent && (
         <AttendanceModal
           ev={attendanceModalEvent}
@@ -361,7 +410,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
               arbitrationPayments: cleanPayments,
             });
 
-            // ⬇️ MANTENEMOS EL CÁLCULO ORIGINAL (flexible)
             const totalArbitraje = cleanPayments.reduce(
               (sum, p) => sum + (Number(p.amount || p.monto || p.pagado) || 0),
               0,
