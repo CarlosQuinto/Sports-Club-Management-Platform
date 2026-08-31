@@ -299,32 +299,40 @@ export default function RoutineBuilder({
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "0.5rem" }}>
+      {/* 👇 AQUÍ ESTÁ LA MAGIA RESPONSIVA DE LOS BOTONES 👇 */}
+      <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <SecondaryButton
           type="button"
           onClick={addPhase}
           style={{
-            flex: 1,
+            flex: "1 1 130px", // 👈 Clave para que se apilen en celulares muy pequeños
             display: "flex",
             gap: "0.4rem",
             justifyContent: "center",
+            alignItems: "center", // 👈 Alinea el ícono y el texto perfectamente
+            padding: "0.75rem",
+            whiteSpace: "nowrap",
           }}
         >
-          <ListChecks size={14} /> + Fase
+          <ListChecks size={16} /> + Fase
         </SecondaryButton>
         <SecondaryButton
           type="button"
           onClick={addHydration}
           style={{
-            flex: 1,
+            flex: "1 1 130px", // 👈 Clave para el Responsive
             display: "flex",
             gap: "0.4rem",
             justifyContent: "center",
+            alignItems: "center",
+            padding: "0.75rem",
             color: "#0284c7",
+            backgroundColor: "#f0f9ff", // 👈 Fondo azulito muy suave para que destaque
             borderColor: "#bae6fd",
+            whiteSpace: "nowrap",
           }}
         >
-          <Droplet size={14} /> + Hidratación
+          <Droplet size={16} /> + Hidratación
         </SecondaryButton>
       </div>
     </div>

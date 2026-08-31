@@ -25,7 +25,10 @@ import {
   PlayCircle,
   Wallet,
   ChevronUp,
-  ChevronDown, // 👈 ¡Aquí están!
+  ChevronDown,
+  Goal, // 👈 AÑADIDO
+  Shield, // 👈 AÑADIDO
+  Activity, // 👈 AÑADIDO
 } from "lucide-react";
 import {
   C,
@@ -1314,7 +1317,7 @@ export const LineupModal = ({
   return createPortal(modalContent, document.body);
 };
 
-// ── Comparador de Jugadores Modal ──
+// ── Comparador de Jugadores Modal (ESTILO PREMIUM) ──
 export const CompareModal = ({
   playersStats,
   onClose,
@@ -1325,7 +1328,6 @@ export const CompareModal = ({
   const [playerAId, setPlayerAId] = useState("");
   const [playerBId, setPlayerBId] = useState("");
 
-  // 👈 NUEVO: Filtramos para que solo se puedan comparar jugadores activos
   const activePlayersStats = useMemo(
     () => playersStats.filter((p: any) => p.active !== false),
     [playersStats],
@@ -1334,8 +1336,10 @@ export const CompareModal = ({
   const pA = activePlayersStats.find((p) => p.id === playerAId);
   const pB = activePlayersStats.find((p) => p.id === playerBId);
 
+  // 👇 NUEVO RENDER DE FILAS CON ÍCONOS Y PÍLDORAS 👇
   const renderRow = (
     label: string,
+    icon: React.ReactNode,
     valA: number,
     valB: number,
     reverse: boolean = false,
@@ -1350,45 +1354,74 @@ export const CompareModal = ({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          padding: "0.6rem 0",
+          padding: "0.75rem 0",
           borderBottom: `1px solid ${C.gray100}`,
+          transition: "background-color 0.2s ease",
         }}
       >
-        <span
-          style={{
-            fontWeight: aIsBetter ? "800" : "500",
-            color: aIsBetter ? C.green : C.gray600,
-            width: "25%",
-            textAlign: "center",
-            fontSize: "1rem",
-          }}
+        {/* VALOR JUGADOR A */}
+        <div
+          style={{ width: "25%", display: "flex", justifyContent: "center" }}
         >
-          {valA}
-        </span>
-        <span
+          <span
+            style={{
+              backgroundColor: aIsBetter ? C.green : "transparent",
+              color: aIsBetter ? C.white : isTie ? C.navy900 : C.gray400,
+              padding: aIsBetter ? "4px 16px" : "4px",
+              borderRadius: RADIUS.full,
+              fontWeight: aIsBetter ? "900" : "700",
+              fontSize: "1.1rem",
+              boxShadow: aIsBetter ? SHADOWS.sm : "none",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {valA}
+          </span>
+        </div>
+
+        {/* ETIQUETA E ÍCONO (CENTRO) */}
+        <div
           style={{
-            fontWeight: "700",
-            color: C.navy900,
             flex: 1,
-            textAlign: "center",
-            fontSize: "0.6875rem",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "0.2rem",
           }}
         >
-          {label}
-        </span>
-        <span
-          style={{
-            fontWeight: bIsBetter ? "800" : "500",
-            color: bIsBetter ? C.green : C.gray600,
-            width: "25%",
-            textAlign: "center",
-            fontSize: "1rem",
-          }}
+          <div style={{ color: C.navy300, opacity: 0.8 }}>{icon}</div>
+          <span
+            style={{
+              fontWeight: "800",
+              color: C.navy900,
+              fontSize: "0.65rem",
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+            }}
+          >
+            {label}
+          </span>
+        </div>
+
+        {/* VALOR JUGADOR B */}
+        <div
+          style={{ width: "25%", display: "flex", justifyContent: "center" }}
         >
-          {valB}
-        </span>
+          <span
+            style={{
+              backgroundColor: bIsBetter ? C.green : "transparent",
+              color: bIsBetter ? C.white : isTie ? C.navy900 : C.gray400,
+              padding: bIsBetter ? "4px 16px" : "4px",
+              borderRadius: RADIUS.full,
+              fontWeight: bIsBetter ? "900" : "700",
+              fontSize: "1.1rem",
+              boxShadow: bIsBetter ? SHADOWS.sm : "none",
+              transition: "all 0.2s ease",
+            }}
+          >
+            {valB}
+          </span>
+        </div>
       </div>
     );
   };
@@ -1404,6 +1437,7 @@ export const CompareModal = ({
         justifyContent: "center",
         alignItems: "center",
         padding: "1rem",
+        animation: "fadeIn 0.2s ease",
       }}
       onClick={onClose}
     >
@@ -1411,85 +1445,129 @@ export const CompareModal = ({
         style={{
           backgroundColor: C.white,
           borderRadius: RADIUS.xl,
-          padding: "1.5rem",
           width: "100%",
           maxWidth: "450px",
           maxHeight: "90vh",
           overflowY: "auto",
           boxShadow: SHADOWS.xl,
+          display: "flex",
+          flexDirection: "column",
         }}
         onClick={(e) => e.stopPropagation()}
+        className="hide-scroll"
       >
+        {/* ENCABEZADO Y ÁREA DE FOTOS CON FONDO SUTIL */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "1.5rem",
+            background: "linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%)",
+            padding: "1.5rem",
+            borderBottom: `1px solid ${C.gray200}`,
+            position: "relative",
           }}
         >
-          <h3
-            style={{
-              fontSize: "1.125rem",
-              fontWeight: "800",
-              color: C.navy900,
-              margin: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            <ArrowRightLeft size={20} color={C.blueAccent} /> Cara a Cara
-          </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: C.gray400,
-              cursor: "pointer",
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
           <div
             style={{
-              flex: 1,
               display: "flex",
-              flexDirection: "column",
-              gap: "0.75rem",
+              justifyContent: "space-between",
               alignItems: "center",
+              marginBottom: "1.5rem",
             }}
           >
+            <h3
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: "900",
+                color: C.navy900,
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+              }}
+            >
+              <ArrowRightLeft size={20} color={C.blueAccent} /> Cara a Cara
+            </h3>
+            <button
+              onClick={onClose}
+              style={{
+                background: "rgba(255,255,255,0.5)",
+                border: "none",
+                borderRadius: "50%",
+                color: C.gray600,
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {/* SELECTORES DE JUGADORES */}
+          <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
             <FormSelect
               value={playerAId}
               onChange={(e) => setPlayerAId(e.target.value)}
-              style={{ width: "100%" }}
+              style={{
+                flex: 1,
+                backgroundColor: C.white,
+                fontWeight: "600",
+                fontSize: "0.8125rem",
+              }}
             >
               <option value="">Jugador A</option>
-              {/* 👈 NUEVO: Usamos activePlayersStats en lugar de playersStats */}
               {activePlayersStats.map((p) => (
                 <option key={p.id} value={p.id} disabled={p.id === playerBId}>
                   {p.name}
                 </option>
               ))}
             </FormSelect>
+            <FormSelect
+              value={playerBId}
+              onChange={(e) => setPlayerBId(e.target.value)}
+              style={{
+                flex: 1,
+                backgroundColor: C.white,
+                fontWeight: "600",
+                fontSize: "0.8125rem",
+              }}
+            >
+              <option value="">Jugador B</option>
+              {activePlayersStats.map((p) => (
+                <option key={p.id} value={p.id} disabled={p.id === playerAId}>
+                  {p.name}
+                </option>
+              ))}
+            </FormSelect>
+          </div>
+
+          {/* LAS FOTOS Y EL "VS" */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              position: "relative",
+              height: "90px",
+            }}
+          >
+            {/* Jugador A */}
             <div
               style={{
-                width: "80px",
-                height: "80px",
-                backgroundColor: C.gray50,
+                width: "90px",
+                height: "90px",
+                backgroundColor: C.white,
                 borderRadius: "50%",
-                border: `3px solid ${C.gray100}`,
+                border: `4px solid ${C.white}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden",
-                boxShadow: SHADOWS.sm,
-                flexShrink: 0,
+                boxShadow: SHADOWS.md,
+                position: "absolute",
+                left: "15%",
+                zIndex: 2,
               }}
             >
               {pA ? (
@@ -1501,59 +1579,47 @@ export const CompareModal = ({
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <span style={{ fontSize: "2rem", opacity: 0.2 }}>👤</span>
+                <span style={{ fontSize: "2.5rem", opacity: 0.1 }}>👤</span>
               )}
             </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "0 0.5rem",
-            }}
-          >
-            <span
-              style={{ fontSize: "1rem", fontWeight: "800", color: C.gray400 }}
-            >
-              VS
-            </span>
-          </div>
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.75rem",
-              alignItems: "center",
-            }}
-          >
-            <FormSelect
-              value={playerBId}
-              onChange={(e) => setPlayerBId(e.target.value)}
-              style={{ width: "100%" }}
-            >
-              <option value="">Jugador B</option>
-              {/* 👈 NUEVO: Usamos activePlayersStats en lugar de playersStats */}
-              {activePlayersStats.map((p) => (
-                <option key={p.id} value={p.id} disabled={p.id === playerAId}>
-                  {p.name}
-                </option>
-              ))}
-            </FormSelect>
+
+            {/* Escudo VS Central */}
             <div
               style={{
-                width: "80px",
-                height: "80px",
-                backgroundColor: C.gray50,
+                backgroundColor: C.amber,
+                color: C.white,
                 borderRadius: "50%",
-                border: `3px solid ${C.gray100}`,
+                width: "40px",
+                height: "40px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: "900",
+                fontSize: "0.85rem",
+                boxShadow: "0 4px 10px rgba(245, 158, 11, 0.4)",
+                zIndex: 3,
+                border: `3px solid ${C.white}`,
+              }}
+            >
+              VS
+            </div>
+
+            {/* Jugador B */}
+            <div
+              style={{
+                width: "90px",
+                height: "90px",
+                backgroundColor: C.white,
+                borderRadius: "50%",
+                border: `4px solid ${C.white}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 overflow: "hidden",
-                boxShadow: SHADOWS.sm,
-                flexShrink: 0,
+                boxShadow: SHADOWS.md,
+                position: "absolute",
+                right: "15%",
+                zIndex: 1,
               }}
             >
               {pB ? (
@@ -1565,57 +1631,95 @@ export const CompareModal = ({
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
               ) : (
-                <span style={{ fontSize: "2rem", opacity: 0.2 }}>👤</span>
+                <span style={{ fontSize: "2.5rem", opacity: 0.1 }}>👤</span>
               )}
             </div>
           </div>
         </div>
 
-        {pA && pB ? (
-          <div style={{ animation: "fadeIn 0.3s ease" }}>
-            {renderRow("Goles", pA.goals, pB.goals)}
-            {renderRow("Asistencias", pA.assists, pB.assists)}
-            {renderRow(
-              "Partidos Jugados",
-              pA.matchesAttended,
-              pB.matchesAttended,
-            )}
-            {renderRow(
-              "Entrenamientos",
-              pA.trainingsAttended,
-              pB.trainingsAttended,
-            )}
-            {renderRow("Premios MVP", pA.mvps, pB.mvps)}
-            {(pA.position === "Portero" || pB.position === "Portero") &&
-              renderRow(
-                "Goles Recibidos",
-                pA.goalsConceded,
-                pB.goalsConceded,
+        {/* ÁREA DE ESTADÍSTICAS */}
+        <div style={{ padding: "1.5rem" }}>
+          {pA && pB ? (
+            <div style={{ animation: "fadeIn 0.4s ease" }}>
+              {renderRow("Goles", <Goal size={16} />, pA.goals, pB.goals)}
+              {renderRow(
+                "Asistencias",
+                <Users size={16} />,
+                pA.assists,
+                pB.assists,
+              )}
+              {renderRow(
+                "Partidos",
+                <Calendar size={16} />,
+                pA.matchesAttended,
+                pB.matchesAttended,
+              )}
+              {renderRow(
+                "Prácticas",
+                <Activity size={16} />,
+                pA.trainingsAttended,
+                pB.trainingsAttended,
+              )}
+              {renderRow("Premios MVP", <Award size={16} />, pA.mvps, pB.mvps)}
+
+              {(pA.position === "Portero" || pB.position === "Portero") &&
+                renderRow(
+                  "Goles Recibidos",
+                  <Target size={16} />,
+                  pA.goalsConceded,
+                  pB.goalsConceded,
+                  true,
+                )}
+              {(pA.position === "Portero" || pB.position === "Portero") &&
+                renderRow(
+                  "Arcos en Cero",
+                  <Shield size={16} />,
+                  pA.cleanSheets,
+                  pB.cleanSheets,
+                )}
+
+              {renderRow(
+                "Amarillas",
+                <AlertTriangle size={16} />,
+                pA.yellowCards,
+                pB.yellowCards,
                 true,
               )}
-            {(pA.position === "Portero" || pB.position === "Portero") &&
-              renderRow("Arcos en Cero", pA.cleanSheets, pB.cleanSheets)}
-            {renderRow(
-              "Tarjetas Amarillas",
-              pA.yellowCards,
-              pB.yellowCards,
-              true,
-            )}
-            {renderRow("Tarjetas Rojas", pA.redCards, pB.redCards, true)}
-          </div>
-        ) : (
-          <p
-            style={{
-              textAlign: "center",
-              color: C.gray400,
-              fontSize: "0.875rem",
-              fontStyle: "italic",
-              padding: "2rem 0",
-            }}
-          >
-            Selecciona a dos jugadores para compararlos.
-          </p>
-        )}
+              {renderRow(
+                "Rojas",
+                <AlertTriangle size={16} />,
+                pA.redCards,
+                pB.redCards,
+                true,
+              )}
+            </div>
+          ) : (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "3rem 1rem",
+                opacity: 0.5,
+              }}
+            >
+              <ArrowRightLeft
+                size={48}
+                color={C.gray400}
+                style={{ marginBottom: "1rem" }}
+              />
+              <p
+                style={{
+                  color: C.gray600,
+                  fontSize: "0.875rem",
+                  fontStyle: "italic",
+                  margin: 0,
+                }}
+              >
+                Selecciona a dos jugadores en la parte superior para comenzar la
+                comparación.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
