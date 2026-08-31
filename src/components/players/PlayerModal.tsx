@@ -38,7 +38,7 @@ export default function PlayerModal({
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    closeButtonRef.current?.focus();
+    closeButtonRef.current?.focus({ preventScroll: true });
 
     return () => {
       document.body.style.overflow = originalOverflow;
@@ -77,7 +77,6 @@ export default function PlayerModal({
             ? C.red || "#ef4444"
             : C.gray500;
 
-  // 👇 COMPONENTE INTERNO: LA CAJA PREMIUM (OPCIÓN 1) 👇
   const PremiumStatBox = ({
     icon,
     label,
@@ -94,7 +93,7 @@ export default function PlayerModal({
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.02)", // Sombra súper sutil
+        boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
       }}
     >
       <div style={{ color: C.gray500, marginBottom: "0.4rem" }}>{icon}</div>
@@ -136,8 +135,9 @@ export default function PlayerModal({
         zIndex: 9999,
         display: "flex",
         justifyContent: "center",
-        alignItems: "center",
-        padding: "1rem",
+        alignItems: "flex-start", // 👈 Corrección clave: Permite alinear desde arriba y scrollear el fondo
+        overflowY: "auto", // 👈 El scroll general vive aquí para evitar cortes en la parte superior
+        padding: "2rem 1rem",
         animation: "fadeIn 0.2s ease",
       }}
       onClick={onClose}
@@ -152,12 +152,9 @@ export default function PlayerModal({
           display: "flex",
           flexDirection: "column",
           boxShadow: SHADOWS.xl,
-          maxHeight: "95vh",
-          overflowY: "auto",
-          overscrollBehavior: "contain",
+          margin: "auto", // Centra de forma inteligente si hay espacio, o fluye hacia abajo si es más alto
         }}
         onClick={(e) => e.stopPropagation()}
-        className="hide-scroll"
       >
         {/* ── CABECERA PREMIUM (BANNER OSCURO) ── */}
         <div
@@ -341,7 +338,7 @@ export default function PlayerModal({
           </div>
         </div>
 
-        {/* ── RENDIMIENTO HISTÓRICO (CAJAS ORDENADAS) ── */}
+        {/* ── RENDIMIENTO HISTÓRICO ── */}
         <div style={{ padding: "1.5rem", width: "100%" }}>
           <p
             style={{
@@ -385,7 +382,6 @@ export default function PlayerModal({
                 gap: "0.75rem",
               }}
             >
-              {/* Bloques Principales (3 Columnas) */}
               <div
                 style={{
                   display: "grid",
@@ -427,7 +423,6 @@ export default function PlayerModal({
                 )}
               </div>
 
-              {/* Bloques Secundarios (4 Columnas) */}
               <div
                 style={{
                   display: "grid",
@@ -462,7 +457,7 @@ export default function PlayerModal({
           )}
         </div>
 
-        {/* ── VITRINA DE TROFEOS (CON SCROLL INTERNO YA APLICADO) ── */}
+        {/* ── VITRINA DE TROFEOS ── */}
         {!isDT && (
           <div style={{ padding: "0 1.5rem 1.5rem 1.5rem" }}>
             <TrophyCase achievements={achievements} />

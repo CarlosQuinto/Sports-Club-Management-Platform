@@ -16,8 +16,6 @@ interface TrophyCaseProps {
 
 export default function TrophyCase({ achievements }: TrophyCaseProps) {
   const [isOpen, setIsOpen] = useState(false);
-  // 👇 NUEVO ESTADO: Guarda qué trofeo está seleccionado para ver sus detalles
-  const [selectedAch, setSelectedAch] = useState<Achievement | null>(null);
 
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
   const totalCount = achievements.length;
@@ -26,8 +24,6 @@ export default function TrophyCase({ achievements }: TrophyCaseProps) {
   const handleToggle = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsOpen(!isOpen);
-    // Si cerramos la vitrina, limpiamos la selección
-    if (isOpen) setSelectedAch(null);
   };
 
   return (
@@ -124,176 +120,67 @@ export default function TrophyCase({ achievements }: TrophyCaseProps) {
         </div>
       </button>
 
-      {/* ── INTERIOR DE LA VITRINA ── */}
+      {/* ── INTERIOR DE LA VITRINA (SIN CONTENEDORES INDIVIDUALES) ── */}
       {isOpen && (
-        <div style={{ animation: "fadeIn 0.3s ease" }}>
-          {/* 👇 NUEVO: PANEL DE DETALLE DEL TROFEO SELECCIONADO 👇 */}
-          {selectedAch && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.875rem",
-                backgroundColor: selectedAch.unlocked
-                  ? "rgba(245, 158, 11, 0.05)"
-                  : C.gray50,
-                border: `1px solid ${selectedAch.unlocked ? "rgba(245, 158, 11, 0.3)" : C.gray200}`,
-                padding: "0.875rem",
-                borderRadius: RADIUS.md,
-                marginTop: "0.75rem",
-                animation: "fadeIn 0.2s ease",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "2rem",
-                  filter: selectedAch.unlocked
-                    ? "drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4))"
-                    : "grayscale(100%) opacity(40%)",
-                }}
-              >
-                {selectedAch.unlocked ? selectedAch.icon : "🔒"}
-              </div>
-              <div
-                style={{ display: "flex", flexDirection: "column", flex: 1 }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontWeight: "800",
-                      color: selectedAch.unlocked ? C.amber : C.gray600,
-                      fontSize: "0.8125rem",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {selectedAch.title}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "0.6rem",
-                      fontWeight: "800",
-                      color: selectedAch.unlocked ? C.green : C.gray500,
-                      backgroundColor: selectedAch.unlocked
-                        ? "rgba(16,185,129,0.1)"
-                        : C.gray200,
-                      padding: "2px 6px",
-                      borderRadius: RADIUS.full,
-                    }}
-                  >
-                    {selectedAch.unlocked ? "DESBLOQUEADO" : "BLOQUEADO"}
-                  </span>
-                </div>
-                <span
-                  style={{
-                    fontSize: "0.7rem",
-                    color: C.gray500,
-                    marginTop: "0.25rem",
-                    lineHeight: 1.3,
-                  }}
-                >
-                  {selectedAch.desc}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* ── CUADRÍCULA CON SCROLL INTERNO ── */}
+        <div style={{ animation: "fadeIn 0.3s ease", marginTop: "1rem" }}>
           <div
-            className="hide-scroll"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(75px, 1fr))",
-              gap: "0.5rem",
-              marginTop: selectedAch ? "0.75rem" : "1rem", // Ajuste de margen dinámico
-              padding: "0.25rem",
-              maxHeight: "240px",
-              overflowY: "auto",
+              gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))",
+              gap: "1rem 0.75rem",
+              padding: "0.5rem 0.25rem",
             }}
           >
-            {achievements.map((ach) => {
-              const isSelected = selectedAch?.id === ach.id;
-
-              return (
+            {achievements.map((ach) => (
+              <div
+                key={ach.id}
+                style={{
+                  opacity: ach.unlocked ? 1 : 0.4,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  textAlign: "center",
+                }}
+              >
+                {/* ÍCONO DEL TROFEO */}
                 <div
-                  key={ach.id}
-                  onClick={() => setSelectedAch(isSelected ? null : ach)}
                   style={{
-                    opacity: ach.unlocked ? 1 : 0.5,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    textAlign: "center",
-                    // 👇 Lógica de colores según estado y selección 👇
-                    backgroundColor: isSelected
-                      ? ach.unlocked
-                        ? "rgba(245, 158, 11, 0.15)"
-                        : C.gray100
-                      : ach.unlocked
-                        ? C.white
-                        : "transparent",
-                    border: `1px solid ${
-                      isSelected
-                        ? ach.unlocked
-                          ? C.amber
-                          : C.gray400
-                        : ach.unlocked
-                          ? "rgba(245, 158, 11, 0.3)"
-                          : "transparent"
-                    }`,
-                    borderRadius: RADIUS.md,
-                    padding: "0.5rem",
-                    boxShadow:
-                      isSelected && ach.unlocked
-                        ? "0 0 0 2px rgba(245, 158, 11, 0.2)"
-                        : "none",
-                    transition:
-                      "transform 0.1s ease, box-shadow 0.2s ease, background-color 0.2s ease",
-                    cursor: "pointer", // ¡Ahora todos son clickeables!
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-3px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
+                    fontSize: "2rem",
+                    marginBottom: "0.35rem",
+                    filter: ach.unlocked
+                      ? "drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4))"
+                      : "grayscale(100%)",
                   }}
                 >
-                  {/* ÍCONO DEL TROFEO */}
-                  <div
-                    style={{
-                      fontSize: "1.75rem",
-                      marginBottom: "0.25rem",
-                      filter: ach.unlocked
-                        ? "drop-shadow(0 2px 4px rgba(245, 158, 11, 0.4))"
-                        : "grayscale(100%)",
-                      transition: "transform 0.2s ease",
-                      transform: isSelected ? "scale(1.15)" : "scale(1)",
-                    }}
-                  >
-                    {ach.unlocked ? ach.icon : "🔒"}
-                  </div>
-
-                  {/* TÍTULO */}
-                  <div
-                    style={{
-                      fontSize: "0.55rem",
-                      fontWeight: "800",
-                      color: ach.unlocked ? C.amber : C.gray500,
-                      lineHeight: "1.2",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {ach.title}
-                  </div>
+                  {ach.unlocked ? ach.icon : "🔒"}
                 </div>
-              );
-            })}
+
+                {/* TÍTULO */}
+                <div
+                  style={{
+                    fontSize: "0.6rem",
+                    fontWeight: "800",
+                    color: ach.unlocked ? C.amber : C.navy900,
+                    lineHeight: "1.2",
+                    textTransform: "uppercase",
+                    marginBottom: "0.2rem",
+                  }}
+                >
+                  {ach.title}
+                </div>
+
+                {/* CONDICIÓN / DESCRIPCIÓN */}
+                <div
+                  style={{
+                    fontSize: "0.5rem",
+                    color: C.gray500,
+                    lineHeight: "1.2",
+                  }}
+                >
+                  {ach.desc}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
