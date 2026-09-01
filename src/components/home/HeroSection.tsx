@@ -7,6 +7,8 @@ import {
   Trash2,
   Camera,
   UploadCloud,
+  Link as LinkIcon,
+  LayoutTemplate,
 } from "lucide-react";
 import { doc, setDoc } from "firebase/firestore";
 import {
@@ -54,10 +56,7 @@ export default function HeroSection({
   );
 
   const [currentHeroIndex, setCurrentHeroIndex] = useState(0);
-
-  // 👇 CAMBIO CLAVE: Ahora guardamos el NÚMERO de la fila que está subiendo (o null si ninguna)
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
-
   const [newlyUploadedImages, setNewlyUploadedImages] = useState<string[]>([]);
 
   const heroTouchStartX = useRef<number | null>(null);
@@ -67,6 +66,7 @@ export default function HeroSection({
     ? players.filter((p: any) => p.active !== false).length
     : 0;
 
+  // Auto-slide del carrusel
   useEffect(() => {
     if (
       !clubInfo.heroImages ||
@@ -80,6 +80,7 @@ export default function HeroSection({
     return () => clearTimeout(timer);
   }, [clubInfo.heroImages, isEditingClubInfo, currentHeroIndex]);
 
+  // Gestos táctiles
   const handleHeroTouchStart = (e: React.TouchEvent) => {
     heroTouchEndX.current = null;
     heroTouchStartX.current = e.targetTouches[0].clientX;
@@ -133,18 +134,16 @@ export default function HeroSection({
   const handleFileUpload = async (index: number, file: File) => {
     if (!file) return;
     try {
-      // 👇 Indicamos qué fila exacta se está subiendo
       setUploadingIndex(index);
 
       const options = {
-        maxSizeMB: 0.15,
+        maxSizeMB: 0.2, // 200 KB
         maxWidthOrHeight: 1200,
         useWebWorker: true,
-        initialQuality: 0.7,
+        initialQuality: 0.8, // Calidad un poco mejor para la portada
       };
 
       const compressedFile = await imageCompression(file, options);
-
       const storage = getStorage();
       const fileRef = ref(
         storage,
@@ -161,9 +160,8 @@ export default function HeroSection({
       setEditHeroImages(newImages);
     } catch (error) {
       console.error("Error subiendo imagen:", error);
-      alert("Error al subir la imagen.");
+      alert("Error al subir la imagen. Verifica tu conexión.");
     } finally {
-      // 👇 Apagamos el indicador al terminar
       setUploadingIndex(null);
     }
   };
@@ -173,15 +171,13 @@ export default function HeroSection({
       const storage = getStorage();
       for (const urlToDelete of newlyUploadedImages) {
         try {
-          const fileRef = ref(storage, urlToDelete);
-          await deleteObject(fileRef);
+          await deleteObject(ref(storage, urlToDelete));
           console.log("Archivo cancelado eliminado con éxito:", urlToDelete);
         } catch (error) {
           console.error("No se pudo eliminar el archivo cancelado:", error);
         }
       }
     }
-
     setNewlyUploadedImages([]);
     setIsEditingClubInfo(false);
   };
@@ -207,8 +203,7 @@ export default function HeroSection({
       const storage = getStorage();
       for (const urlToDelete of imagesToDelete) {
         try {
-          const fileRef = ref(storage, urlToDelete);
-          await deleteObject(fileRef);
+          await deleteObject(ref(storage, urlToDelete));
           console.log("Archivo huérfano eliminado con éxito:", urlToDelete);
         } catch (error) {
           console.error("No se pudo eliminar el archivo huérfano:", error);
@@ -249,6 +244,7 @@ export default function HeroSection({
         position: "relative",
       }}
     >
+      {/* ── BOTÓN FLOTANTE EDITAR (VISTA NORMAL) ── */}
       {perms.canEditPortada && !isEditingClubInfo && (
         <button
           onClick={() => {
@@ -265,298 +261,452 @@ export default function HeroSection({
             position: "absolute",
             top: "1rem",
             right: "1rem",
-            background: "rgba(255,255,255,0.95)",
-            border: `1px solid ${C.gray200}`,
-            borderRadius: RADIUS.md,
+            background: "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(6px)",
+            border: `1px solid rgba(255,255,255,0.4)`,
+            borderRadius: RADIUS.full,
             padding: "0.5rem 1rem",
             cursor: "pointer",
-            fontWeight: "600",
+            fontWeight: "700",
             fontSize: "0.75rem",
             display: "flex",
             alignItems: "center",
             gap: "0.4rem",
-            boxShadow: SHADOWS.sm,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             zIndex: 50,
             color: C.navy900,
+            transition: "all 0.2s ease",
           }}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "scale(1.05)")
+          }
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <Edit size={14} /> Editar Portada
+          <Edit size={14} color={C.amber} /> Ajustar Portada
         </button>
       )}
 
+      {/* ── PANEL DE EDICIÓN PREMIUM ── */}
       {isEditingClubInfo ? (
-        <div style={{ padding: "2rem", backgroundColor: C.gray50 }}>
-          <form
-            onSubmit={handleSaveClubInfo}
-            style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+        <div style={{ backgroundColor: C.gray50 }}>
+          {/* Cabecera del Editor */}
+          <div
+            style={{
+              padding: "1.25rem 1.5rem",
+              backgroundColor: C.white,
+              borderBottom: `1px solid ${C.gray200}`,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
           >
             <div
               style={{
+                backgroundColor: "rgba(245, 158, 11, 0.15)",
+                padding: "6px",
+                borderRadius: "50%",
                 display: "flex",
-                flexDirection: "column",
-                gap: "0.4rem",
               }}
             >
-              <label
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "700",
-                  color: C.navy900,
-                }}
-              >
-                Nombre del Club
-              </label>
-              <FormInput
-                type="text"
-                required
-                value={editClubName}
-                onChange={(e) => setEditClubName(e.target.value)}
-                placeholder="Joga Bonito FC"
-              />
+              <LayoutTemplate size={18} color={C.amber} />
             </div>
-
-            <div
+            <h3
               style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.4rem",
+                fontSize: "1.1rem",
+                fontWeight: "800",
+                color: C.navy900,
+                margin: 0,
               }}
             >
-              <label
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "700",
-                  color: C.navy900,
-                }}
-              >
-                Sede o Ciudad
-              </label>
-              <FormInput
-                type="text"
-                required
-                value={editLocation}
-                onChange={(e) => setEditLocation(e.target.value)}
-                placeholder="Ej. Guaymas, Sonora"
-              />
-            </div>
+              Editor de Portada
+            </h3>
+          </div>
 
+          <form
+            onSubmit={handleSaveClubInfo}
+            style={{
+              padding: "1.5rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "1.5rem",
+            }}
+          >
+            {/* Bloque de Textos */}
             <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.4rem",
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
             >
-              <label
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "700",
-                  color: C.navy900,
-                }}
-              >
-                Descripción (Lema o historia breve)
-              </label>
-              <FormTextarea
-                required
-                value={editClubDesc}
-                onChange={(e) => setEditClubDesc(e.target.value)}
-                placeholder="Descripción breve"
-                rows={2}
-              />
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-                marginTop: "0.5rem",
-              }}
-            >
-              <label
-                style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "700",
-                  color: C.navy900,
-                }}
-              >
-                Imágenes del Carrusel
-              </label>
-
-              {editHeroImages.map((url, index) => (
-                <div
-                  key={index}
+              <div>
+                <label
                   style={{
-                    display: "flex",
-                    gap: "0.5rem",
-                    alignItems: "center",
-                    backgroundColor: C.white,
-                    padding: "0.5rem",
-                    borderRadius: RADIUS.md,
-                    border: `1px solid ${C.gray200}`,
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "700",
+                    color: C.gray500,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "0.4rem",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "relative",
-                      width: "36px",
-                      height: "36px",
-                      backgroundColor: C.gray50,
-                      borderRadius: RADIUS.sm,
-                      color: C.gray300,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      border: `1px solid ${C.gray200}`,
-                    }}
-                  >
-                    <Camera
-                      size={16}
-                      style={{ position: "absolute", zIndex: 0 }}
-                    />
-                    {url && (
-                      <img
-                        src={url}
-                        alt="Preview"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          position: "relative",
-                          zIndex: 1,
-                          backgroundColor: C.white,
-                        }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                        onLoad={(e) => {
-                          e.currentTarget.style.display = "block";
-                        }}
-                      />
-                    )}
-                  </div>
+                  Nombre del Club
+                </label>
+                <FormInput
+                  type="text"
+                  required
+                  value={editClubName}
+                  onChange={(e) => setEditClubName(e.target.value)}
+                  placeholder="Joga Bonito FC"
+                  style={{ width: "100%" }}
+                />
+              </div>
 
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "700",
+                    color: C.gray500,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "0.4rem",
+                  }}
+                >
+                  Sede o Ciudad
+                </label>
+                <FormInput
+                  type="text"
+                  required
+                  value={editLocation}
+                  onChange={(e) => setEditLocation(e.target.value)}
+                  placeholder="Ej. Guaymas, Sonora"
+                  style={{ width: "100%" }}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: "block",
+                    fontSize: "0.75rem",
+                    fontWeight: "700",
+                    color: C.gray500,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "0.4rem",
+                  }}
+                >
+                  Lema o Historia Breve
+                </label>
+                <FormTextarea
+                  required
+                  value={editClubDesc}
+                  onChange={(e) => setEditClubDesc(e.target.value)}
+                  placeholder="Descripción breve que motive al equipo..."
+                  rows={2}
+                  style={{ width: "100%" }}
+                />
+              </div>
+            </div>
+
+            <hr
+              style={{
+                border: "none",
+                borderTop: `1px solid ${C.gray200}`,
+                margin: "0",
+              }}
+            />
+
+            {/* Bloque de Imágenes del Carrusel */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.2rem",
+                }}
+              >
+                <label
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: "700",
+                    color: C.navy900,
+                  }}
+                >
+                  Imágenes del Carrusel
+                </label>
+                <span style={{ fontSize: "0.75rem", color: C.gray500 }}>
+                  Sube o pega links para las imágenes de fondo. La primera será
+                  la principal.
+                </span>
+              </div>
+
+              {editHeroImages.map((url, index) => {
+                const isCover = index === 0;
+                return (
                   <div
+                    key={index}
                     style={{
-                      flex: 1,
                       display: "flex",
-                      flexDirection: "column",
-                      gap: "0.4rem",
+                      gap: "1rem",
+                      alignItems: "flex-start",
+                      padding: "1rem",
+                      backgroundColor: C.white,
+                      borderRadius: RADIUS.lg,
+                      border: `1px solid ${isCover ? C.amber : C.gray200}`,
+                      boxShadow: isCover
+                        ? "0 4px 12px rgba(245, 158, 11, 0.1)"
+                        : SHADOWS.sm,
+                      position: "relative",
+                      transition: "all 0.2s ease",
                     }}
                   >
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => handleUpdateImage(index, e.target.value)}
-                      placeholder="Pega un link de imagen..."
-                      required={index === 0 && !url}
+                    {isCover && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "-10px",
+                          left: "1rem",
+                          backgroundColor: C.amber,
+                          color: C.navy900,
+                          fontSize: "0.6rem",
+                          fontWeight: "800",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          padding: "2px 8px",
+                          borderRadius: RADIUS.full,
+                          boxShadow: SHADOWS.sm,
+                          border: `1px solid ${C.white}`,
+                        }}
+                      >
+                        Principal
+                      </div>
+                    )}
+
+                    {/* Miniatura */}
+                    <div
+                      style={{
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: RADIUS.md,
+                        backgroundColor: C.gray50,
+                        border: `1px solid ${C.gray200}`,
+                        overflow: "hidden",
+                        flexShrink: 0,
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginTop: isCover ? "0.2rem" : "0",
+                      }}
+                    >
+                      {url.trim() ? (
+                        <img
+                          src={url}
+                          alt={`Preview ${index}`}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                          onError={(e) =>
+                            (e.currentTarget.style.display = "none")
+                          }
+                          onLoad={(e) =>
+                            (e.currentTarget.style.display = "block")
+                          }
+                        />
+                      ) : (
+                        <Camera size={20} color={C.gray300} />
+                      )}
+                    </div>
+
+                    {/* Controles */}
+                    <div
                       style={{
                         flex: 1,
-                        border: "none",
-                        outline: "none",
-                        fontSize: "0.8125rem",
-                        color: C.navy900,
-                        backgroundColor: "transparent",
-                      }}
-                    />
-                    <label
-                      style={{
                         display: "flex",
-                        alignItems: "center",
-                        gap: "0.3rem",
-                        color: C.amber,
-                        fontSize: "0.7rem",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        width: "fit-content",
+                        flexDirection: "column",
+                        gap: "0.6rem",
+                        marginTop: isCover ? "0.2rem" : "0",
                       }}
                     >
-                      <UploadCloud size={14} />
-                      {/* 👇 Solo la fila actual muestra "Subiendo..." 👇 */}
-                      {uploadingIndex === index
-                        ? "Subiendo..."
-                        : "Subir desde dispositivo"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        disabled={uploadingIndex !== null}
-                        onChange={(e) => {
-                          if (e.target.files && e.target.files[0]) {
-                            handleFileUpload(index, e.target.files[0]);
-                          }
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
                         }}
-                        style={{ display: "none" }}
-                      />
-                    </label>
-                  </div>
+                      >
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.4rem",
+                            backgroundColor: C.gray50,
+                            border: `1px solid ${C.gray200}`,
+                            color: C.navy900,
+                            padding: "0.4rem 0.875rem",
+                            borderRadius: RADIUS.full,
+                            fontSize: "0.75rem",
+                            fontWeight: "700",
+                            cursor:
+                              uploadingIndex !== null
+                                ? "not-allowed"
+                                : "pointer",
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                            opacity: uploadingIndex === index ? 0.6 : 1,
+                          }}
+                        >
+                          <UploadCloud size={14} color={C.amber} />
+                          {uploadingIndex === index
+                            ? "Subiendo..."
+                            : "Cargar Foto"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            disabled={uploadingIndex !== null}
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                handleFileUpload(index, e.target.files[0]);
+                              }
+                            }}
+                            style={{ display: "none" }}
+                          />
+                        </label>
 
-                  {editHeroImages.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImageField(index)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: C.red,
-                        cursor: "pointer",
-                        padding: "0.25rem",
-                      }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
+                        {/* Botón Borrar */}
+                        {editHeroImages.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImageField(index)}
+                            style={{
+                              color: C.red || "#ef4444",
+                              background: "rgba(239, 68, 68, 0.05)",
+                              border: `1px solid rgba(239, 68, 68, 0.2)`,
+                              borderRadius: RADIUS.sm,
+                              cursor: "pointer",
+                              padding: "4px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                            title="Eliminar foto"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Input URL */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.4rem",
+                          borderTop: `1px dashed ${C.gray200}`,
+                          paddingTop: "0.5rem",
+                        }}
+                      >
+                        <LinkIcon size={12} color={C.gray400} />
+                        <input
+                          type="url"
+                          value={url}
+                          onChange={(e) =>
+                            handleUpdateImage(index, e.target.value)
+                          }
+                          placeholder="O pega una URL externa..."
+                          required={index === 0 && !url}
+                          style={{
+                            flex: 1,
+                            fontSize: "0.75rem",
+                            border: "none",
+                            background: "transparent",
+                            color: C.gray600,
+                            outline: "none",
+                            padding: 0,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
 
               <button
                 type="button"
                 onClick={handleAddImageField}
                 style={{
-                  background: "none",
-                  border: `1px dashed ${C.gray300}`,
-                  borderRadius: RADIUS.md,
-                  padding: "0.5rem",
-                  color: C.gray600,
-                  fontWeight: "600",
-                  fontSize: "0.75rem",
-                  cursor: "pointer",
+                  width: "100%",
+                  padding: "0.875rem",
+                  marginTop: "0.25rem",
+                  border: `2px dashed ${C.gray300}`,
+                  borderRadius: RADIUS.lg,
+                  backgroundColor: C.white,
+                  color: C.navy900,
+                  fontSize: "0.8rem",
+                  fontWeight: "700",
                   display: "flex",
                   justifyContent: "center",
-                  gap: "0.4rem",
                   alignItems: "center",
+                  gap: "0.5rem",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = C.gray50;
+                  e.currentTarget.style.borderColor = C.amber;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = C.white;
+                  e.currentTarget.style.borderColor = C.gray300;
                 }}
               >
-                <Plus size={14} /> Añadir imagen al carrusel
+                <div
+                  style={{
+                    backgroundColor: C.gray100,
+                    padding: "4px",
+                    borderRadius: "50%",
+                  }}
+                >
+                  <Plus size={14} color={C.amber} />
+                </div>
+                Añadir otra imagen al carrusel
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}>
-              {/* 👇 El botón principal se bloquea si hay cualquier carga activa 👇 */}
+            {/* Botones de Guardar/Cancelar */}
+            <div style={{ display: "flex", gap: "0.75rem", marginTop: "1rem" }}>
+              <SecondaryButton
+                type="button"
+                onClick={handleCancelEdit}
+                style={{ flex: 1 }}
+              >
+                Cancelar
+              </SecondaryButton>
               <PrimaryButton
                 type="submit"
                 style={{ flex: 1, opacity: uploadingIndex !== null ? 0.7 : 1 }}
                 disabled={uploadingIndex !== null}
               >
-                {uploadingIndex !== null
-                  ? "Cargando imagen..."
-                  : "Guardar Portada"}
+                {uploadingIndex !== null ? "Procesando..." : "Guardar Cambios"}
               </PrimaryButton>
-              <SecondaryButton type="button" onClick={handleCancelEdit}>
-                Cancelar
-              </SecondaryButton>
             </div>
           </form>
         </div>
       ) : (
+        /* ── VISTA NORMAL (CARRUSEL E INFO) ── */
         <>
           <div
             style={{
               position: "relative",
               width: "100%",
               aspectRatio: "16/9",
-              backgroundColor: "black",
+              backgroundColor: C.navy900, // Fondo base oscuro
               overflow: "hidden",
               cursor: "pointer",
             }}
@@ -573,69 +723,75 @@ export default function HeroSection({
                 style={{
                   width: "100%",
                   height: "100%",
-                  objectFit: "contain",
-                  objectPosition: "center",
+                  objectFit: "cover", // Se cambió a cover para llenar todo el espacio como un verdadero banner
                   position: "absolute",
                   top: 0,
                   left: 0,
                   opacity: idx === currentHeroIndex ? 1 : 0,
-                  transition: "opacity 1s ease-in-out",
+                  transition: "opacity 0.8s ease-in-out, transform 5s linear", // Ligero efecto Ken Burns (si se agrega transform: scale(1.05))
+                  transform:
+                    idx === currentHeroIndex ? "scale(1.02)" : "scale(1)",
                 }}
               />
             ))}
 
+            {/* Gradiente Oscuro Mejorado */}
             <div
               style={{
                 position: "absolute",
                 bottom: 0,
                 left: 0,
                 right: 0,
-                height: "60px",
+                height: "50%",
                 background:
-                  "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)",
+                  "linear-gradient(to top, rgba(10,25,41,0.9) 0%, rgba(10,25,41,0.4) 50%, transparent 100%)",
                 pointerEvents: "none",
               }}
             />
 
+            {/* Cápsulas del Carrusel (Estilo iOS) */}
             {clubInfo.heroImages?.length > 1 && (
               <div
                 style={{
                   position: "absolute",
-                  bottom: "1rem",
+                  bottom: "1.25rem",
                   left: 0,
                   right: 0,
                   display: "flex",
                   justifyContent: "center",
-                  gap: "0.4rem",
+                  gap: "0.3rem",
                   zIndex: 20,
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                {clubInfo.heroImages.map((_: any, idx: number) => (
-                  <div
-                    key={idx}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentHeroIndex(idx);
-                    }}
-                    style={{
-                      width: "12px",
-                      height: "12px",
-                      borderRadius: "50%",
-                      backgroundColor:
-                        idx === currentHeroIndex
-                          ? C.white
+                {clubInfo.heroImages.map((_: any, idx: number) => {
+                  const isActive = idx === currentHeroIndex;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentHeroIndex(idx);
+                      }}
+                      style={{
+                        width: isActive ? "20px" : "6px", // Se expande a pastilla si está activo
+                        height: "6px",
+                        borderRadius: "10px",
+                        backgroundColor: isActive
+                          ? C.amber
                           : "rgba(255,255,255,0.4)",
-                      transition: "background-color 0.3s ease",
-                      cursor: "pointer",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.5)",
-                    }}
-                  />
-                ))}
+                        transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
 
+          {/* Textos y Etiquetas */}
           <div
             style={{
               padding: "1.75rem 1.5rem",
@@ -643,6 +799,7 @@ export default function HeroSection({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
+              backgroundColor: C.white,
             }}
           >
             <h1
@@ -661,10 +818,11 @@ export default function HeroSection({
             <p
               style={{
                 margin: "0 0 1.25rem 0",
-                color: C.gray600,
-                fontSize: "0.875rem",
-                lineHeight: "1.5",
-                maxWidth: "280px",
+                color: C.gray500,
+                fontSize: "0.9rem",
+                lineHeight: "1.6",
+                maxWidth: "320px",
+                fontWeight: "500",
               }}
             >
               {clubInfo.description}
@@ -680,39 +838,42 @@ export default function HeroSection({
             >
               <span
                 style={{
-                  backgroundColor: C.navy50,
+                  backgroundColor: C.gray50,
+                  border: `1px solid ${C.gray200}`,
                   color: C.navy700,
-                  padding: "0.35rem 0.75rem",
+                  padding: "0.35rem 0.875rem",
                   borderRadius: RADIUS.full,
                   fontSize: "0.7rem",
-                  fontWeight: "700",
+                  fontWeight: "800",
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.25rem",
+                  gap: "0.3rem",
                   letterSpacing: "0.02em",
                   textTransform: "uppercase",
                 }}
               >
-                <MapPin size={12} /> {clubInfo.location || "Guaymas, Sonora"}
+                <MapPin size={12} color={C.amber} />{" "}
+                {clubInfo.location || "Guaymas, Sonora"}
               </span>
 
               {activePlayersCount > 0 && (
                 <span
                   style={{
-                    backgroundColor: "rgba(16, 185, 129, 0.1)",
+                    backgroundColor: "rgba(16, 185, 129, 0.08)",
+                    border: "1px solid rgba(16, 185, 129, 0.2)",
                     color: C.green,
-                    padding: "0.35rem 0.75rem",
+                    padding: "0.35rem 0.875rem",
                     borderRadius: RADIUS.full,
                     fontSize: "0.7rem",
-                    fontWeight: "700",
+                    fontWeight: "800",
                     display: "flex",
                     alignItems: "center",
-                    gap: "0.25rem",
+                    gap: "0.3rem",
                     letterSpacing: "0.02em",
                     textTransform: "uppercase",
                   }}
                 >
-                  <Users size={12} /> {activePlayersCount} Activos
+                  <Users size={12} /> {activePlayersCount} Plantilla
                 </span>
               )}
             </div>

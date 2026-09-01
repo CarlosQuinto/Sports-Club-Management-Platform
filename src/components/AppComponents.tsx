@@ -22,10 +22,13 @@ import {
   Images,
   ChevronLeft,
   ChevronRight,
-  PlayCircle,
+  UserCheck,
+  UserX,
   Wallet,
   ChevronUp,
   ChevronDown,
+  UserPlus,
+  Check,
   Goal, // 👈 AÑADIDO
   Shield, // 👈 AÑADIDO
   Activity, // 👈 AÑADIDO
@@ -50,7 +53,6 @@ import {
 // 👇 Importamos nuestro nuevo componente visualizador de Rutinas
 import RoutineDisplay from "./agenda/RoutineDisplay";
 
-// ── Modals: Asistencia ──
 export const AttendanceModal = ({
   ev,
   players,
@@ -58,7 +60,6 @@ export const AttendanceModal = ({
   onClose,
   onSave,
 }: any) => {
-  // 👈 NUEVO: Filtramos solo a los jugadores activos para las listas nuevas
   const activePlayers = useMemo(
     () => players.filter((p: any) => p.active !== false),
     [players],
@@ -79,9 +80,7 @@ export const AttendanceModal = ({
   const isAttending = adminAttendees.includes(selectedPlayerId);
 
   const allUniqueIds = useMemo(() => {
-    // 👈 NUEVO: Usamos activePlayers para llenar la lista de asistencia
     const ids = activePlayers.map((p: any) => p.id);
-    // Pero si alguien inactivo ya estaba en la lista de un evento pasado, lo mantenemos visible
     adminAttendees.forEach((att) => {
       if (!ids.includes(att)) ids.push(att);
     });
@@ -93,12 +92,14 @@ export const AttendanceModal = ({
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(10, 25, 41, 0.90)",
+        backgroundColor: "rgba(10, 25, 41, 0.85)", // Fondo Premium difuminado
+        backdropFilter: "blur(4px)",
         zIndex: 9999,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         padding: "1rem",
+        animation: "fadeIn 0.2s ease",
       }}
       onClick={onClose}
     >
@@ -106,32 +107,48 @@ export const AttendanceModal = ({
         style={{
           backgroundColor: C.white,
           borderRadius: RADIUS.xl,
-          padding: "1.5rem",
           width: "100%",
-          maxWidth: "400px",
+          maxWidth: "420px",
           maxHeight: "90vh",
           display: "flex",
           flexDirection: "column",
           boxShadow: SHADOWS.xl,
+          overflow: "hidden", // Para respetar las esquinas de la cabecera
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* ── CABECERA DEL MODAL ── */}
         <div
           style={{
+            backgroundColor: C.gray50,
+            borderBottom: `1px solid ${C.gray200}`,
+            padding: "1.25rem 1.5rem",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            marginBottom: "1.5rem",
           }}
         >
           <h3
             style={{
-              fontSize: "1.125rem",
-              fontWeight: "700",
+              fontSize: "1.1rem",
+              fontWeight: "800",
               color: C.navy900,
               margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
             }}
           >
+            <div
+              style={{
+                backgroundColor: "rgba(16, 185, 129, 0.15)",
+                padding: "6px",
+                borderRadius: "50%",
+                display: "flex",
+              }}
+            >
+              <Users size={18} color={C.green} />
+            </div>
             {perms.canEditAgenda
               ? "Gestionar Asistencias"
               : "Confirmar Asistencia"}
@@ -139,69 +156,82 @@ export const AttendanceModal = ({
           <button
             onClick={onClose}
             style={{
-              background: "none",
-              border: "none",
-              color: C.gray400,
+              background: C.white,
+              border: `1px solid ${C.gray200}`,
+              borderRadius: "50%",
+              color: C.gray500,
               cursor: "pointer",
+              width: "32px",
+              height: "32px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
             }}
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         </div>
 
-        {perms.canEditAgenda ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-            }}
-          >
-            <p
-              style={{
-                fontSize: "0.8125rem",
-                color: C.gray500,
-                marginBottom: "1rem",
-              }}
-            >
-              Selecciona los jugadores e invitados que asistirán.
-            </p>
-            <div
-              className="hide-scroll"
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.5rem",
-                marginBottom: "1rem",
-                paddingRight: "0.5rem",
-              }}
-            >
-              {allUniqueIds.map((id: string) => {
-                const attending = adminAttendees.includes(id);
-                const isGuest = id.startsWith("guest-");
-                const displayName = getPlayerName(id, players);
+        {/* ── CONTENIDO PRINCIPAL ── */}
+        <div style={{ padding: "1.5rem", overflowY: "auto" }}>
+          {perms.canEditAgenda ? (
+            /* 👇 VISTA DEL DIRECTIVO 👇 */
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-end",
+                  marginBottom: "1rem",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: "600",
+                    color: C.navy900,
+                    margin: 0,
+                  }}
+                >
+                  Lista de Convocados
+                </p>
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    color: C.gray500,
+                    fontWeight: "700",
+                    backgroundColor: C.gray100,
+                    padding: "2px 8px",
+                    borderRadius: RADIUS.full,
+                  }}
+                >
+                  {adminAttendees.length} Confirmados
+                </span>
+              </div>
 
-                return (
-                  <label
-                    key={id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.75rem",
-                      padding: "0.75rem",
-                      borderRadius: RADIUS.md,
-                      backgroundColor: attending ? C.greenLight : C.gray50,
-                      border: `1px solid ${attending ? C.greenBorder : C.gray200}`,
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={attending}
-                      onChange={() => {
+              {/* Lista scrolleable de jugadores */}
+              <div
+                className="hide-scroll"
+                style={{
+                  maxHeight: "40vh",
+                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "0.4rem",
+                  marginBottom: "1.25rem",
+                  paddingRight: "0.2rem",
+                }}
+              >
+                {allUniqueIds.map((id: string) => {
+                  const attending = adminAttendees.includes(id);
+                  const isGuest = id.startsWith("guest-");
+                  const displayName = getPlayerName(id, players);
+
+                  return (
+                    <div
+                      key={id}
+                      onClick={() => {
                         if (attending)
                           setAdminAttendees(
                             adminAttendees.filter((n) => n !== id),
@@ -209,144 +239,227 @@ export const AttendanceModal = ({
                         else setAdminAttendees([...adminAttendees, id]);
                       }}
                       style={{
-                        accentColor: C.green,
-                        width: "1.1rem",
-                        height: "1.1rem",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: "0.875rem",
-                        fontWeight: "600",
-                        color: C.navy900,
                         display: "flex",
                         alignItems: "center",
-                        gap: "0.5rem",
+                        justifyContent: "space-between",
+                        padding: "0.75rem 1rem",
+                        borderRadius: RADIUS.lg,
+                        backgroundColor: attending
+                          ? "rgba(16, 185, 129, 0.05)"
+                          : C.white,
+                        border: `1px solid ${attending ? "rgba(16, 185, 129, 0.3)" : C.gray200}`,
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
                       }}
                     >
-                      {displayName}{" "}
-                      {isGuest && (
-                        <Badge
-                          color="amber"
-                          style={{ fontSize: "0.6rem", padding: "2px 4px" }}
-                        >
-                          Invitado
-                        </Badge>
-                      )}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
+                      <span
+                        style={{
+                          fontSize: "0.85rem",
+                          fontWeight: attending ? "700" : "500",
+                          color: attending ? C.green : C.navy900,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.5rem",
+                        }}
+                      >
+                        {displayName}
+                        {isGuest && (
+                          <Badge
+                            color="amber"
+                            style={{ fontSize: "0.6rem", padding: "2px 6px" }}
+                          >
+                            Invitado
+                          </Badge>
+                        )}
+                      </span>
 
+                      {/* Checkbox Circular Custom (Estilo iOS) */}
+                      <div
+                        style={{
+                          width: "20px",
+                          height: "20px",
+                          borderRadius: "50%",
+                          border: attending ? "none" : `2px solid ${C.gray300}`,
+                          backgroundColor: attending ? C.green : "transparent",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {attending && (
+                          <Check size={12} color={C.white} strokeWidth={4} />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Agregar Invitado */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  marginBottom: "1.25rem",
+                  borderTop: `1px dashed ${C.gray200}`,
+                  paddingTop: "1.25rem",
+                }}
+              >
+                <FormInput
+                  value={newGuest}
+                  onChange={(e) => setNewGuest(e.target.value)}
+                  placeholder="Nombre del invitado..."
+                  style={{ flex: 1, fontSize: "0.85rem" }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = newGuest.trim();
+                      if (trimmed) {
+                        const guestId = `guest-${trimmed}`;
+                        if (!adminAttendees.includes(guestId)) {
+                          setAdminAttendees([...adminAttendees, guestId]);
+                          setNewGuest("");
+                        }
+                      }
+                    }
+                  }}
+                />
+                <SecondaryButton
+                  type="button"
+                  onClick={() => {
+                    const trimmed = newGuest.trim();
+                    if (trimmed) {
+                      const guestId = `guest-${trimmed}`;
+                      if (!adminAttendees.includes(guestId)) {
+                        setAdminAttendees([...adminAttendees, guestId]);
+                        setNewGuest("");
+                      }
+                    }
+                  }}
+                  style={{
+                    padding: "0 1rem",
+                    display: "flex",
+                    gap: "0.3rem",
+                    alignItems: "center",
+                  }}
+                >
+                  <UserPlus size={16} /> Añadir
+                </SecondaryButton>
+              </div>
+
+              <PrimaryButton
+                onClick={() => onSave(ev.id, adminAttendees)}
+                style={{ width: "100%", padding: "1rem", fontSize: "0.9rem" }}
+              >
+                Guardar Lista Oficial
+              </PrimaryButton>
+            </div>
+          ) : (
+            /* 👇 VISTA DEL JUGADOR 👇 */
             <div
               style={{
                 display: "flex",
-                gap: "0.5rem",
-                marginBottom: "1rem",
-                borderTop: `1px solid ${C.gray200}`,
-                paddingTop: "1rem",
+                flexDirection: "column",
+                gap: "1.5rem",
               }}
             >
-              <FormInput
-                value={newGuest}
-                onChange={(e) => setNewGuest(e.target.value)}
-                placeholder="Añadir invitado (Ej. El Güero)..."
-                style={{ fontSize: "0.8125rem" }}
-              />
-              <SecondaryButton
-                type="button"
-                onClick={() => {
-                  const trimmed = newGuest.trim();
-                  if (trimmed) {
-                    const guestId = `guest-${trimmed}`;
-                    if (!adminAttendees.includes(guestId)) {
-                      setAdminAttendees([...adminAttendees, guestId]);
-                      setNewGuest("");
-                    }
-                  }
-                }}
-                style={{ padding: "0.5rem 0.8rem", fontSize: "0.75rem" }}
-              >
-                Añadir
-              </SecondaryButton>
-            </div>
-
-            <PrimaryButton
-              onClick={() => onSave(ev.id, adminAttendees)}
-              style={{ width: "100%" }}
-            >
-              Guardar Lista
-            </PrimaryButton>
-          </div>
-        ) : (
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
-          >
-            <div
-              style={{
-                backgroundColor: C.gray50,
-                padding: "1rem",
-                borderRadius: RADIUS.lg,
-                border: `1px solid ${C.gray200}`,
-              }}
-            >
-              <label
+              <div
                 style={{
-                  fontSize: "0.8125rem",
-                  fontWeight: "600",
-                  color: C.gray600,
-                  display: "block",
-                  marginBottom: "0.5rem",
+                  backgroundColor: C.gray50,
+                  padding: "1.25rem",
+                  borderRadius: RADIUS.lg,
+                  border: `1px solid ${C.gray200}`,
                 }}
               >
-                ¿Quién eres?
-              </label>
-              <FormSelect
-                value={selectedPlayerId}
-                onChange={(e) => setSelectedPlayerId(e.target.value)}
-              >
-                <option value="">Selecciona tu nombre...</option>
-                {/* 👈 NUEVO: Solo mostramos jugadores activos en el select */}
-                {activePlayers.map((p: any) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
+                <label
+                  style={{
+                    fontSize: "0.8rem",
+                    fontWeight: "800",
+                    color: C.navy900,
+                    display: "block",
+                    marginBottom: "0.5rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  ¿Quién eres?
+                </label>
+                <FormSelect
+                  value={selectedPlayerId}
+                  onChange={(e) => setSelectedPlayerId(e.target.value)}
+                  style={{
+                    width: "100%",
+                    fontSize: "0.9rem",
+                    padding: "0.75rem",
+                  }}
+                >
+                  <option value="">
+                    Selecciona tu nombre de la plantilla...
                   </option>
-                ))}
-              </FormSelect>
-            </div>
-            {selectedPlayerId && (
-              <div style={{ animation: "fadeIn 0.3s ease" }}>
-                {isAttending ? (
-                  <PrimaryButton
-                    variant="red"
-                    onClick={() =>
-                      onSave(
-                        ev.id,
-                        adminAttendees.filter(
-                          (id: string) => id !== selectedPlayerId,
-                        ),
-                      )
-                    }
-                    style={{ width: "100%" }}
-                  >
-                    Cancelar mi asistencia
-                  </PrimaryButton>
-                ) : (
-                  <PrimaryButton
-                    variant="green"
-                    onClick={() =>
-                      onSave(ev.id, [...adminAttendees, selectedPlayerId])
-                    }
-                    style={{ width: "100%" }}
-                  >
-                    Confirmar asistencia
-                  </PrimaryButton>
-                )}
+                  {activePlayers.map((p: any) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </FormSelect>
               </div>
-            )}
-          </div>
-        )}
+
+              {selectedPlayerId && (
+                <div style={{ animation: "fadeIn 0.3s ease" }}>
+                  {isAttending ? (
+                    <button
+                      onClick={() =>
+                        onSave(
+                          ev.id,
+                          adminAttendees.filter(
+                            (id: string) => id !== selectedPlayerId,
+                          ),
+                        )
+                      }
+                      style={{
+                        width: "100%",
+                        backgroundColor: "rgba(239, 68, 68, 0.1)",
+                        color: C.red,
+                        border: `1px solid rgba(239, 68, 68, 0.3)`,
+                        borderRadius: RADIUS.md,
+                        padding: "1rem",
+                        fontSize: "0.9rem",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.5rem",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <UserX size={18} /> Cancelar mi asistencia
+                    </button>
+                  ) : (
+                    <PrimaryButton
+                      variant="green"
+                      onClick={() =>
+                        onSave(ev.id, [...adminAttendees, selectedPlayerId])
+                      }
+                      style={{
+                        width: "100%",
+                        padding: "1rem",
+                        fontSize: "0.9rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      <UserCheck size={18} /> Confirmar Asistencia
+                    </PrimaryButton>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
