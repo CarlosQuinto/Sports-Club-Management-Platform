@@ -10,7 +10,9 @@ import {
   LayoutTemplate,
   X,
   Edit2,
-  UploadCloud, // 👈 AÑADIDO
+  UploadCloud,
+  Lock,
+  LogOut,
 } from "lucide-react";
 import { useClubData, db } from "./hooks/useClubData";
 import {
@@ -20,7 +22,7 @@ import {
   FormInput,
   PrimaryButton,
   SecondaryButton,
-} from "./components/ui"; // 👈 Añadido SecondaryButton
+} from "./components/ui";
 import { formatFriendlyDate, formatFriendlyTime } from "./utils/helpers";
 import Home from "./pages/Home";
 import Agenda from "./pages/Agenda";
@@ -28,8 +30,6 @@ import Players from "./pages/Players";
 import Finances from "./pages/Finances";
 import Inventory from "./pages/Inventory";
 import { doc, updateDoc } from "firebase/firestore";
-
-// 👇 IMPORTACIONES DE STORAGE Y COMPRESIÓN 👇
 import {
   getStorage,
   ref,
@@ -38,6 +38,30 @@ import {
   deleteObject,
 } from "firebase/storage";
 import imageCompression from "browser-image-compression";
+
+// ── CUSTOM HOOK PARA RESIZE Y RESPONSIVIDAD ──
+// Soluciona el problema de window.innerWidth no reactivo al rotar la pantalla
+function useWindowSize() {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== "undefined" ? window.innerWidth : 800,
+    height: typeof window !== "undefined" ? window.innerHeight : 600,
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+    window.addEventListener("resize", handleResize);
+    // Ejecuta inmediatamente para sincronizar con el tamaño inicial
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return windowSize;
+}
 
 export default function App() {
   const {
@@ -54,29 +78,26 @@ export default function App() {
     "inicio" | "agenda" | "jugadores" | "finanzas" | "inventario"
   >("inicio");
 
-  // ── ESTADO PARA EL SCROLL AUTOMÁTICO DE LAS TABS ──
+  // Uso del hook de responsividad
+  const { width } = useWindowSize();
+  const isMobile = width < 500;
+  const isUltraSmall = width < 400;
+
   const navContainerRef = useRef<HTMLDivElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
-
-  // ── ESTADO PARA ILUMINAR EVENTOS DESDE EL BANNER ──
   const [highlightedEventId, setHighlightedEventId] = useState<string | null>(
     null,
   );
-
   const pendingTransitionCleanup = useRef<(() => void) | null>(null);
   const highlightTimeoutRef = useRef<number | null>(null);
 
-  // ── SEGURIDAD POR PIN (LOCALSTORAGE) ──
   const [modo, setModo] = useState(() => localStorage.getItem("jb_rol") || "");
   const [showLogin, setShowLogin] = useState(false);
   const [pinCode, setPinCode] = useState("");
 
-  // ── ESTADO PARA EDITAR INFO DEL CLUB ──
   const [showEditClub, setShowEditClub] = useState(false);
   const [editClubName, setEditClubName] = useState("");
   const [editClubLogo, setEditClubLogo] = useState("");
-
-  // 👇 NUEVOS ESTADOS PARA SUBIR EL ESCUDO 👇
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [newlyUploadedLogos, setNewlyUploadedLogos] = useState<string[]>([]);
 
@@ -86,37 +107,30 @@ export default function App() {
       clubInfo?.logoUrl ||
         "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg",
     );
-    setNewlyUploadedLogos([]); // Limpiamos el rastreador de basura al abrir
+    setNewlyUploadedLogos([]);
     setShowEditClub(true);
   };
 
-  // 👇 LÓGICA DE SUBIDA DE ESCUDO 👇
   const handleLogoUpload = async (file: File) => {
     if (!file) return;
     try {
       setIsUploadingLogo(true);
-
-      // Compresión extrema para el logo (500px máximo, peso imperceptible)
       const options = {
         maxSizeMB: 0.1,
         maxWidthOrHeight: 500,
         useWebWorker: true,
         initialQuality: 0.8,
       };
-
       const compressedFile = await imageCompression(file, options);
-
       const storage = getStorage();
       const fileRef = ref(
         storage,
         `logos/logo_${Date.now()}_${compressedFile.name}`,
       );
-
       await uploadBytes(fileRef, compressedFile);
       const url = await getDownloadURL(fileRef);
-
-      setNewlyUploadedLogos((prev) => [...prev, url]); // Rastreamos
-      setEditClubLogo(url); // Mostramos
+      setNewlyUploadedLogos((prev) => [...prev, url]);
+      setEditClubLogo(url);
     } catch (error) {
       console.error("Error subiendo logo:", error);
       alert("Error al subir el escudo.");
@@ -125,7 +139,6 @@ export default function App() {
     }
   };
 
-  // 👇 FUNCIÓN CANCELAR (Limpia basura de la sesión) 👇
   const handleCancelEditClub = async () => {
     if (newlyUploadedLogos.length > 0) {
       const storage = getStorage();
@@ -143,14 +156,11 @@ export default function App() {
     setShowEditClub(false);
   };
 
-  // 👇 FUNCIÓN GUARDAR (Limpia logos viejos) 👇
   const handleSaveClub = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const storage = getStorage();
       const oldLogo = clubInfo?.logoUrl;
-
-      // 1. Si cambiaron el logo y el viejo estaba en Firebase, borramos el viejo.
       if (
         oldLogo &&
         oldLogo !== editClubLogo &&
@@ -159,13 +169,8 @@ export default function App() {
         try {
           const fileRef = ref(storage, oldLogo);
           await deleteObject(fileRef);
-          console.log("Escudo anterior eliminado.");
-        } catch (e) {
-          console.error("No se pudo borrar el escudo viejo", e);
-        }
+        } catch (e) {}
       }
-
-      // 2. Si subieron 3 logos en la misma sesión y se quedaron con 1, borramos los 2 huérfanos.
       const orphanedNewLogos = newlyUploadedLogos.filter(
         (url) => url !== editClubLogo,
       );
@@ -175,13 +180,11 @@ export default function App() {
           await deleteObject(fileRef);
         } catch (e) {}
       }
-
       const clubRef = doc(db, "settings", "club_info");
       await updateDoc(clubRef, {
         name: editClubName,
         logoUrl: editClubLogo,
       });
-
       setNewlyUploadedLogos([]);
       setShowEditClub(false);
     } catch (error) {
@@ -372,10 +375,13 @@ export default function App() {
     >
       <header
         style={{
-          backgroundColor: C.navy900,
+          background: `linear-gradient(135deg, ${C.navy900} 0%, #0a1120 100%)`,
           color: C.white,
-          padding: "1.25rem 1.5rem",
-          boxShadow: "0 2px 8px rgba(10,25,41,0.15)",
+          // 👇 En móviles reducimos el padding para darle más cancha al texto
+          padding: isMobile ? "1rem" : "1.25rem 1.5rem",
+          boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
+          position: "relative",
+          zIndex: 50,
         }}
       >
         <div
@@ -385,217 +391,380 @@ export default function App() {
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            gap: isMobile ? "0.5rem" : "1rem", // 👇 Menos hueco al centro en móviles
           }}
         >
+          {/* ── IZQUIERDA: ESCUDO E INFO ── */}
           <div
-            style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: isMobile ? "0.5rem" : "0.875rem", // 👇 Escudo y texto más juntos en móviles
+              flex: 1,
+              minWidth: 0,
+            }}
           >
+            {/* CONTENEDOR DEL LOGO CON LÁPIZ TIPO "BADGE" */}
             <div
-              style={{
-                width: "42px",
-                height: "42px",
-                borderRadius: "50%",
-                overflow: "hidden",
-                backgroundColor: "#121212",
-                border: `1.5px solid ${C.amber}`,
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={{ position: "relative", display: "flex", flexShrink: 0 }}
             >
-              <img
-                src={
-                  clubInfo?.logoUrl ||
-                  "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg"
-                }
-                alt="Escudo del Club"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  transform: "scale(1.5)",
-                }}
-              />
-            </div>
-            <div>
               <div
-                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                style={{
+                  width: "42px",
+                  height: "42px",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  backgroundColor: "#121212",
+                  border: `1.5px solid ${C.amber}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
-                <h1
+                <img
+                  src={
+                    clubInfo?.logoUrl ||
+                    "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg"
+                  }
+                  alt="Escudo del Club"
                   style={{
-                    fontSize: "1.25rem",
-                    fontWeight: "800",
-                    margin: 0,
-                    letterSpacing: "-0.02em",
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    transform: "scale(1.5)",
                   }}
-                >
-                  {clubInfo?.name || "Joga Bonito FC"}
-                </h1>
-
-                {perms.isAdmin && (
-                  <button
-                    onClick={handleOpenEditClub}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: C.amber,
-                      cursor: "pointer",
-                      padding: "0.2rem",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                    title="Editar información del club"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                )}
+                />
               </div>
 
+              {perms.isAdmin && (
+                <button
+                  onClick={handleOpenEditClub}
+                  style={{
+                    position: "absolute",
+                    bottom: "-2px",
+                    right: "-4px",
+                    backgroundColor: C.navy900,
+                    border: `1px solid ${C.amber}`,
+                    color: C.amber,
+                    borderRadius: "50%",
+                    width: "18px",
+                    height: "18px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    padding: 0,
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.4)",
+                    transition: "transform 0.2s ease",
+                  }}
+                  title="Editar información del club"
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.transform = "scale(1.1)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.transform = "scale(1)")
+                  }
+                >
+                  <Edit2 size={10} strokeWidth={3} />
+                </button>
+              )}
+            </div>
+
+            {/* 👇 CONTENEDOR DEL TÍTULO (Restaurado a 1 sola línea) 👇 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
+              <h1
+                style={{
+                  // 👇 Reducción de tamaño estricta basada en el ancho de la pantalla
+                  fontSize: isUltraSmall
+                    ? "0.8rem"
+                    : isMobile
+                      ? "0.95rem"
+                      : "1.25rem",
+                  fontWeight: "800",
+                  margin: 0,
+                  letterSpacing: "-0.02em",
+                  color: C.white,
+                  whiteSpace: "nowrap", // 👈 PROHIBIDO saltar a segunda línea
+                  overflow: "hidden",
+                  textOverflow: "clip", // 👈 Corta al ras si es necesario, sin puntos suspensivos
+                  transition: "font-size 0.2s ease", // Suaviza el cambio al girar el celular
+                }}
+              >
+                {clubInfo?.name || "Joga Bonito FC"}
+              </h1>
+            </div>
+          </div>
+
+          {/* ── DERECHA: ESTADO, ROL Y ACCIONES ── */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.75rem",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              title={
+                loading
+                  ? "Sincronizando con la nube..."
+                  : "Base de datos sincronizada"
+              }
+              style={{
+                display: isUltraSmall ? "none" : "flex",
+                alignItems: "center",
+                gap: "0.35rem",
+                backgroundColor: "rgba(0,0,0,0.3)",
+                padding: "4px 8px",
+                borderRadius: RADIUS.full,
+                border: `1px solid rgba(255,255,255,0.05)`,
+              }}
+            >
               <div
                 style={{
-                  fontSize: "0.75rem",
-                  color: C.navy300,
-                  marginTop: "0.15rem",
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  backgroundColor: loading ? C.amber : C.green,
+                  boxShadow: `0 0 6px ${loading ? C.amber : C.green}`,
+                }}
+              />
+              <span
+                style={{
+                  fontSize: "0.6rem",
+                  color: C.gray300,
+                  fontWeight: "800",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {loading ? "SYNC" : "LIVE"}
+              </span>
+            </div>
+
+            <div
+              style={{
+                width: "1px",
+                height: "16px",
+                backgroundColor: "rgba(255,255,255,0.15)",
+                display: isUltraSmall ? "none" : "block",
+              }}
+            />
+
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <div
+                style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "0.3rem",
+                  backgroundColor: modo
+                    ? "rgba(245, 158, 11, 0.15)"
+                    : "rgba(255,255,255,0.1)",
+                  padding: "4px 10px",
+                  borderRadius: RADIUS.full,
+                  fontSize: "0.65rem",
+                  fontWeight: "800",
+                  color: modo ? C.amber : C.gray300,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
                 }}
               >
                 {modo === "admin" ? (
                   <>
-                    <Shield size={12} /> Presidente
+                    <Shield size={10} /> Presidente
                   </>
                 ) : modo === "dt" ? (
                   <>
-                    <LayoutTemplate size={12} /> Director Técnico
+                    <LayoutTemplate size={10} /> D. Técnico
                   </>
                 ) : modo === "tesorero" ? (
                   <>
-                    <Wallet size={12} /> Tesorero
+                    <Wallet size={10} /> Tesorero
                   </>
                 ) : modo === "prensa" ? (
                   <>
-                    <Camera size={12} /> Prensa
+                    <Camera size={10} /> Prensa
                   </>
                 ) : (
-                  "Jugador"
-                )}
-
-                <span style={{ margin: "0 0.4rem", opacity: 0.3 }}>|</span>
-                {modo ? (
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: C.redBorder,
-                      cursor: "pointer",
-                      fontSize: "0.7rem",
-                      padding: 0,
-                    }}
-                  >
-                    Cerrar sesión
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setShowLogin(true)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: C.amber,
-                      cursor: "pointer",
-                      fontSize: "0.7rem",
-                      padding: 0,
-                    }}
-                  >
-                    Acceso Directiva
-                  </button>
+                  "Plantilla"
                 )}
               </div>
+
+              {modo ? (
+                <button
+                  onClick={handleLogout}
+                  title="Cerrar Sesión"
+                  style={{
+                    background: "rgba(239, 68, 68, 0.1)",
+                    border: `1px solid rgba(239, 68, 68, 0.3)`,
+                    borderRadius: RADIUS.md,
+                    color: C.red || "#ef4444",
+                    cursor: "pointer",
+                    padding: "0.35rem 0.5rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    fontSize: "0.7rem",
+                    fontWeight: "700",
+                  }}
+                >
+                  <LogOut size={12} />
+                  <span style={{ display: isMobile ? "none" : "inline" }}>
+                    Salir
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLogin(true)}
+                  title="Acceso Directiva"
+                  style={{
+                    background: C.white,
+                    border: "none",
+                    borderRadius: RADIUS.md,
+                    color: C.navy900,
+                    cursor: "pointer",
+                    padding: "0.35rem 0.6rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.3rem",
+                    fontSize: "0.7rem",
+                    fontWeight: "800",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+                  }}
+                >
+                  <Lock size={12} />
+                  <span style={{ display: isMobile ? "none" : "inline" }}>
+                    Login
+                  </span>
+                </button>
+              )}
             </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-            <div
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                backgroundColor: loading ? C.amber : C.green,
-                boxShadow: `0 0 8px ${loading ? C.amber : C.green}`,
-              }}
-            />
-            <span
-              style={{
-                fontSize: "0.75rem",
-                color: C.navy300,
-                fontWeight: "500",
-              }}
-            >
-              {loading ? "Conectando..." : "Sincronizado"}
-            </span>
           </div>
         </div>
       </header>
 
-      {/* ── NEXT EVENT BANNER ── */}
+      {/* ── NEXT EVENT BANNER (MINIMALISTA & PREMIUM) ── */}
       {nextEvent && (
         <div
           onClick={handleBannerClick}
           style={{
-            backgroundColor: C.navy900,
-            color: C.white,
-            padding: "1.25rem",
+            background: `linear-gradient(to right, ${C.navy900}, #0f172a)`,
+            padding: "1.5rem",
             margin: "1rem auto",
             width: "calc(100% - 2rem)",
             maxWidth: "768px",
-            borderRadius: RADIUS.lg,
+            borderRadius: RADIUS.xl, // Bordes un poco más suaves
+            border: "1px solid rgba(255,255,255,0.05)", // Borde sutil de cristal
             textAlign: "center",
-            boxShadow: SHADOWS.lg,
             cursor: "pointer",
-            transition: "transform 0.2s ease",
-            boxSizing: "border-box",
+            position: "relative",
+            overflow: "hidden",
+            transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
+            boxShadow: "0 10px 25px -5px rgba(0,0,0,0.15)",
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "scale(1.01)")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = "translateY(-3px)";
+            e.currentTarget.style.boxShadow =
+              "0 20px 25px -5px rgba(0,0,0,0.25)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow =
+              "0 10px 25px -5px rgba(0,0,0,0.15)";
+          }}
         >
-          <p
-            style={{
-              margin: "0 0 0.5rem 0",
-              fontSize: "0.6875rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.12em",
-              color: C.navy300,
-              fontWeight: "600",
-            }}
-          >
-            Próximo {nextEvent.eventType}
-          </p>
+          {/* Línea de acento superior (Detalle sutil FinTech) */}
           <div
             style={{
-              fontSize: "1.75rem",
-              fontWeight: "800",
-              fontFamily: "'Inter', monospace",
-              color: C.amber,
-              letterSpacing: "0.02em",
+              position: "absolute",
+              top: 0,
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "30%",
+              height: "2px",
+              background: `linear-gradient(90deg, transparent, ${C.amber}, transparent)`,
+              opacity: 0.6,
+            }}
+          />
+
+          {/* Etiqueta Superior (Punto luminoso + Texto) */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              marginBottom: "0.5rem",
+            }}
+          >
+            <div
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                backgroundColor: C.amber,
+                boxShadow: `0 0 8px ${C.amber}`,
+              }}
+            />
+            <span
+              style={{
+                fontSize: "0.65rem",
+                textTransform: "uppercase",
+                letterSpacing: "0.15em",
+                color: C.gray400,
+                fontWeight: "700",
+              }}
+            >
+              Próximo {nextEvent.eventType}
+            </span>
+          </div>
+
+          {/* Cuenta Regresiva (Limpia y protagónica) */}
+          <div
+            style={{
+              fontSize: "2.25rem",
+              fontWeight: "900",
+              color: C.white,
+              letterSpacing: "-0.03em",
+              marginBottom: "0.5rem",
+              lineHeight: 1.1,
             }}
           >
             {timeLeft}
           </div>
-          <p
+
+          {/* Detalles secundarios (Jerarquía de colores controlada) */}
+          <div
             style={{
-              margin: "0.5rem 0 0 0",
-              fontSize: "0.875rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.4rem",
+              flexWrap: "wrap",
+              fontSize: "0.8rem",
+              color: C.gray500,
               fontWeight: "500",
-              color: C.navy100,
             }}
           >
-            {nextEvent.title} • {nextEvent.location} •{" "}
-            {formatFriendlyDate(nextEvent.eventDate)} a las{" "}
-            {formatFriendlyTime(nextEvent.eventTime)}
-          </p>
+            <span style={{ color: C.gray200, fontWeight: "700" }}>
+              {nextEvent.title}
+            </span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span>{nextEvent.location}</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span>
+              {formatFriendlyDate(nextEvent.eventDate)} -{" "}
+              {formatFriendlyTime(nextEvent.eventTime)}
+            </span>
+          </div>
         </div>
       )}
 
@@ -605,75 +774,103 @@ export default function App() {
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(10, 25, 41, 0.95)",
+            backgroundColor: "rgba(10, 25, 41, 0.85)",
+            backdropFilter: "blur(4px)",
             zIndex: 9999,
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             padding: "1rem",
+            animation: "fadeIn 0.2s ease",
           }}
-          onClick={handleCancelEditClub} // 👈 Cerrar con clic afuera ahora ejecuta limpieza
+          onClick={handleCancelEditClub}
         >
           <div
             style={{
               backgroundColor: C.white,
               borderRadius: RADIUS.xl,
-              padding: "2rem",
               width: "100%",
-              maxWidth: "400px",
+              maxWidth: "420px",
               boxShadow: SHADOWS.xl,
+              overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
+                backgroundColor: C.gray50,
+                borderBottom: `1px solid ${C.gray200}`,
+                padding: "1.25rem 1.5rem",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "1.5rem",
               }}
             >
               <h3
                 style={{
-                  fontSize: "1.125rem",
+                  fontSize: "1.1rem",
                   fontWeight: "800",
                   color: C.navy900,
                   margin: 0,
                   display: "flex",
                   alignItems: "center",
-                  gap: "0.5rem",
+                  gap: "0.6rem",
                 }}
               >
-                <Edit2 size={20} color={C.amber} /> Ajustes del Club
+                <div
+                  style={{
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                    padding: "6px",
+                    borderRadius: "50%",
+                    display: "flex",
+                  }}
+                >
+                  <Edit2 size={16} color={C.amber} />
+                </div>
+                Ajustes del Club
               </h3>
               <button
-                onClick={handleCancelEditClub} // 👈 X limpia basura
+                onClick={handleCancelEditClub}
                 style={{
-                  background: "none",
-                  border: "none",
-                  color: C.gray400,
+                  background: C.white,
+                  border: `1px solid ${C.gray200}`,
+                  borderRadius: "50%",
+                  color: C.gray500,
                   cursor: "pointer",
+                  width: "32px",
+                  height: "32px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
                 }}
               >
-                <X size={20} />
+                <X size={16} />
               </button>
             </div>
 
             <form
               onSubmit={handleSaveClub}
-              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+              style={{
+                padding: "1.5rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.25rem",
+              }}
             >
               <div>
                 <label
                   style={{
                     display: "block",
-                    fontSize: "0.8125rem",
+                    fontSize: "0.8rem",
                     color: C.gray500,
                     marginBottom: "0.4rem",
-                    fontWeight: "600",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
                   }}
                 >
-                  Nombre del Club
+                  Nombre del Equipo
                 </label>
                 <FormInput
                   type="text"
@@ -681,7 +878,12 @@ export default function App() {
                   value={editClubName}
                   onChange={(e) => setEditClubName(e.target.value)}
                   placeholder="Ej. Joga Bonito FC"
-                  style={{ width: "100%" }}
+                  style={{
+                    width: "100%",
+                    fontSize: "1rem",
+                    fontWeight: "600",
+                    padding: "0.75rem",
+                  }}
                 />
               </div>
 
@@ -689,90 +891,156 @@ export default function App() {
                 <label
                   style={{
                     display: "block",
-                    fontSize: "0.8125rem",
+                    fontSize: "0.8rem",
                     color: C.gray500,
-                    marginBottom: "0.4rem",
-                    fontWeight: "600",
+                    marginBottom: "0.5rem",
+                    fontWeight: "700",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
                   }}
                 >
-                  URL del Escudo (Logo)
+                  Escudo del Club (Logo)
                 </label>
+
                 <div
                   style={{
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "0.4rem",
+                    alignItems: "center",
+                    gap: "1.25rem",
+                    padding: "1rem",
+                    backgroundColor: C.gray50,
+                    borderRadius: RADIUS.lg,
+                    border: `1px solid ${C.gray100}`,
                   }}
                 >
-                  <FormInput
-                    type="url"
-                    required
-                    value={editClubLogo}
-                    onChange={(e) => setEditClubLogo(e.target.value)}
-                    placeholder="https://ejemplo.com/logo.png"
-                    style={{ width: "100%" }}
+                  <img
+                    src={
+                      editClubLogo ||
+                      "https://ui-avatars.com/api/?name=Club&background=f1f5f9&color=94a3b8"
+                    }
+                    alt="Vista previa"
+                    style={{
+                      width: "72px",
+                      height: "72px",
+                      borderRadius: "50%",
+                      objectFit: "cover",
+                      border: `2px solid ${C.gray200}`,
+                      boxShadow: SHADOWS.sm,
+                      backgroundColor: C.white,
+                      flexShrink: 0,
+                    }}
                   />
-                  {/* 👇 BOTÓN PARA SUBIR EL ESCUDO DESDE EL DISPOSITIVO 👇 */}
-                  <label
+
+                  <div
                     style={{
                       display: "flex",
-                      alignItems: "center",
-                      gap: "0.3rem",
-                      color: C.amber,
-                      fontSize: "0.75rem",
-                      fontWeight: "700",
-                      cursor: "pointer",
-                      width: "fit-content",
+                      flexDirection: "column",
+                      gap: "0.5rem",
+                      alignItems: "flex-start",
                     }}
                   >
-                    <UploadCloud size={14} />
-                    {isUploadingLogo
-                      ? "Subiendo escudo..."
-                      : "Subir desde dispositivo"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={isUploadingLogo}
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          handleLogoUpload(e.target.files[0]);
-                        }
-                      }}
-                      style={{ display: "none" }}
-                    />
-                  </label>
-                </div>
-
-                {editClubLogo && (
-                  <div style={{ marginTop: "1rem", textAlign: "center" }}>
-                    <p
+                    <label
                       style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.4rem",
+                        backgroundColor: C.white,
+                        border: `1px solid ${C.gray200}`,
+                        color: C.navy900,
+                        padding: "0.4rem 0.875rem",
+                        borderRadius: RADIUS.full,
                         fontSize: "0.75rem",
-                        color: C.gray400,
-                        marginBottom: "0.5rem",
+                        fontWeight: "700",
+                        cursor: isUploadingLogo ? "not-allowed" : "pointer",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+                        opacity: isUploadingLogo ? 0.6 : 1,
+                        transition: "background-color 0.2s ease",
                       }}
                     >
-                      Vista previa:
-                    </p>
-                    <img
-                      src={editClubLogo}
-                      alt="Vista previa"
+                      <UploadCloud size={14} color={C.amber} />
+                      {isUploadingLogo ? "Subiendo..." : "Cambiar Imagen"}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploadingLogo}
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleLogoUpload(e.target.files[0]);
+                          }
+                        }}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                    <span
                       style={{
-                        width: "60px",
-                        height: "60px",
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: `2px solid ${C.gray200}`,
-                        backgroundColor: "#121212",
+                        fontSize: "0.65rem",
+                        color: C.gray400,
+                        fontWeight: "500",
                       }}
-                    />
+                    >
+                      Recomendado: PNG o JPG (Max. 2MB)
+                    </span>
                   </div>
-                )}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "1px",
+                      backgroundColor: C.gray200,
+                    }}
+                  />
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      color: C.gray400,
+                      fontWeight: "700",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    O PEGAR URL
+                  </span>
+                  <div
+                    style={{
+                      flex: 1,
+                      height: "1px",
+                      backgroundColor: C.gray200,
+                    }}
+                  />
+                </div>
+
+                <FormInput
+                  type="url"
+                  value={editClubLogo}
+                  onChange={(e) => setEditClubLogo(e.target.value)}
+                  placeholder="https://ejemplo.com/logo.png"
+                  style={{
+                    width: "100%",
+                    marginTop: "0.75rem",
+                    fontSize: "0.85rem",
+                    color: C.gray600,
+                  }}
+                />
               </div>
 
               <div
-                style={{ display: "flex", gap: "0.5rem", marginTop: "1rem" }}
+                style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}
               >
+                <SecondaryButton
+                  type="button"
+                  onClick={handleCancelEditClub}
+                  style={{ flex: 1 }}
+                >
+                  Cancelar
+                </SecondaryButton>
                 <PrimaryButton
                   type="submit"
                   style={{ flex: 1, opacity: isUploadingLogo ? 0.7 : 1 }}
@@ -780,28 +1048,26 @@ export default function App() {
                 >
                   {isUploadingLogo ? "Guardando..." : "Guardar Cambios"}
                 </PrimaryButton>
-                {/* 👇 BOTÓN CANCELAR LIMPIA BASURA 👇 */}
-                <SecondaryButton type="button" onClick={handleCancelEditClub}>
-                  Cancelar
-                </SecondaryButton>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ── MODAL DE LOGIN ── */}
+      {/* ── MODAL DE LOGIN (ESTILO CAJA FUERTE) ── */}
       {showLogin && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            backgroundColor: "rgba(10, 25, 41, 0.95)",
+            backgroundColor: "rgba(10, 25, 41, 0.90)",
+            backdropFilter: "blur(6px)",
             zIndex: 9999,
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             padding: "1rem",
+            animation: "fadeIn 0.2s ease",
           }}
           onClick={() => setShowLogin(false)}
         >
@@ -811,51 +1077,78 @@ export default function App() {
               borderRadius: RADIUS.xl,
               padding: "2rem",
               width: "100%",
-              maxWidth: "320px",
+              maxWidth: "340px",
               boxShadow: SHADOWS.xl,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              position: "relative",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div
+            <button
+              onClick={() => setShowLogin(false)}
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "1.5rem",
+                position: "absolute",
+                top: "1rem",
+                right: "1rem",
+                background: "none",
+                border: "none",
+                color: C.gray400,
+                cursor: "pointer",
+                padding: "4px",
               }}
             >
-              <h3
-                style={{
-                  fontSize: "1.125rem",
-                  fontWeight: "800",
-                  color: C.navy900,
-                  margin: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                }}
-              >
-                <Shield size={20} color={C.amber} /> Acceso Directiva
-              </h3>
-              <button
-                onClick={() => setShowLogin(false)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: C.gray400,
-                  cursor: "pointer",
-                }}
-              >
-                <X size={20} />
-              </button>
+              <X size={20} />
+            </button>
+
+            <div
+              style={{
+                width: "56px",
+                height: "56px",
+                borderRadius: "50%",
+                backgroundColor: "rgba(245, 158, 11, 0.1)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: "1rem",
+              }}
+            >
+              <Lock size={28} color={C.amber} />
             </div>
+
+            <h3
+              style={{
+                fontSize: "1.25rem",
+                fontWeight: "900",
+                color: C.navy900,
+                margin: "0 0 0.25rem 0",
+                textAlign: "center",
+              }}
+            >
+              Acceso Directiva
+            </h3>
+            <p
+              style={{
+                margin: "0 0 1.5rem 0",
+                fontSize: "0.85rem",
+                color: C.gray500,
+                textAlign: "center",
+                lineHeight: 1.4,
+              }}
+            >
+              Ingresa tu PIN de seguridad de 4 dígitos para gestionar el club.
+            </p>
+
             <form
               onSubmit={handleLogin}
-              style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "1.25rem",
+                width: "100%",
+              }}
             >
-              <p style={{ margin: 0, fontSize: "0.8125rem", color: C.gray500 }}>
-                Ingresa tu PIN numérico de 4 dígitos.
-              </p>
               <FormInput
                 type="password"
                 inputMode="numeric"
@@ -864,18 +1157,27 @@ export default function App() {
                 required
                 value={pinCode}
                 onChange={(e) => setPinCode(e.target.value)}
-                placeholder="****"
+                placeholder="••••"
                 style={{
-                  fontSize: "1.5rem",
+                  fontSize: "2rem",
                   textAlign: "center",
-                  letterSpacing: "0.5em",
-                  fontWeight: "800",
+                  letterSpacing: "0.75em",
+                  fontWeight: "900",
+                  padding: "1rem",
+                  backgroundColor: C.gray50,
+                  border: `2px solid ${C.gray200}`,
+                  color: C.navy900,
                 }}
                 autoFocus
               />
               <PrimaryButton
                 type="submit"
-                style={{ width: "100%", marginTop: "0.5rem" }}
+                style={{
+                  width: "100%",
+                  padding: "1rem",
+                  fontSize: "0.95rem",
+                  backgroundColor: C.navy900,
+                }}
               >
                 Desbloquear App
               </PrimaryButton>
@@ -942,11 +1244,49 @@ export default function App() {
       </nav>
 
       {/* ── MAIN CONTENT (DYNAMIC SLIDER CONTAINER) ── */}
-      <main style={{ maxWidth: "800px", margin: "0 auto", overflow: "hidden" }}>
+      <main
+        style={{
+          maxWidth: "800px",
+          margin: "0 auto",
+          overflow: "hidden",
+          minHeight: "calc(100vh - 140px)",
+          backgroundColor: "#f8fafc",
+        }}
+      >
         {loading ? (
-          <p style={{ textAlign: "center", padding: "2rem", color: C.gray500 }}>
-            Cargando datos del club...
-          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "4rem 2rem",
+              minHeight: "50vh",
+              animation: "fadeIn 0.3s ease",
+            }}
+          >
+            <div
+              style={{
+                width: "40px",
+                height: "40px",
+                border: `3px solid ${C.gray200}`,
+                borderTop: `3px solid ${C.amber}`,
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+                marginBottom: "1rem",
+              }}
+            />
+            <p
+              style={{
+                color: C.gray500,
+                fontWeight: "600",
+                fontSize: "0.9rem",
+                letterSpacing: "0.02em",
+              }}
+            >
+              Sincronizando el vestuario...
+            </p>
+          </div>
         ) : (
           <div
             ref={sliderRef}
@@ -954,8 +1294,9 @@ export default function App() {
               display: "flex",
               alignItems: "flex-start",
               width: "100%",
-              transition: "transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)",
-              transform: `translateX(-${activeIndex * 100}%)`,
+              transition: "transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)",
+              transform: `translate3d(-${activeIndex * 100}%, 0, 0)`,
+              willChange: "transform",
             }}
           >
             {navItems.map((item, idx) => {
@@ -967,6 +1308,8 @@ export default function App() {
                     width: "100%",
                     flexShrink: 0,
                     boxSizing: "border-box",
+                    opacity: isActive ? 1 : 0,
+                    transition: "opacity 0.4s ease",
                     visibility: isActive ? "visible" : "hidden",
                     pointerEvents: isActive ? "auto" : "none",
                     height: isActive ? "auto" : "0px",
