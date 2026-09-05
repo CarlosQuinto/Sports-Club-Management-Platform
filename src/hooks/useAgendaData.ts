@@ -14,10 +14,13 @@ export function useAgendaData(events: any[]) {
       )
       .forEach((ev: any) => {
         if (ev.eventType === "Partido") {
-          jugados++;
-          if (ev.scoreOurs !== undefined && ev.scoreTheirs !== undefined) {
-            if (ev.scoreOurs > ev.scoreTheirs) ganados++;
-            if (ev.scoreOurs < ev.scoreTheirs) perdidos++;
+          // 👇 REGLA DE ORO: Ignorar los amistosos en el conteo oficial 👇
+          if (ev.matchType !== "Amistoso") {
+            jugados++;
+            if (ev.scoreOurs !== undefined && ev.scoreTheirs !== undefined) {
+              if (ev.scoreOurs > ev.scoreTheirs) ganados++;
+              if (ev.scoreOurs < ev.scoreTheirs) perdidos++;
+            }
           }
         } else {
           entrenamientos++;

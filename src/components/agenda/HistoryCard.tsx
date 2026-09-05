@@ -12,6 +12,7 @@ import {
   Goal,
   Wallet,
   LayoutTemplate,
+  Trash2,
 } from "lucide-react";
 import { C, RADIUS, SHADOWS, CollapsibleRoutine } from "../../components/ui";
 import {
@@ -27,6 +28,8 @@ interface HistoryCardProps {
   perms: any;
   isExpanded: boolean;
   onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
   onUpdateScore: (id: string) => void;
   onOpenStats: (ev: any) => void;
   onOpenArbitration: (ev: any) => void;
@@ -42,6 +45,8 @@ export default function HistoryCard({
   perms,
   isExpanded,
   onToggle,
+  onEdit, // 👈 Y LAS RECIBIMOS AQUÍ
+  onDelete,
   onUpdateScore,
   onOpenStats,
   onOpenArbitration,
@@ -84,30 +89,139 @@ export default function HistoryCard({
       <div
         onClick={onToggle}
         style={{
-          fontSize: "0.875rem",
           padding: "0.875rem 1rem",
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: "flex-start",
           cursor: "pointer",
           backgroundColor: isExpanded ? C.gray50 : C.white,
+          transition: "background-color 0.2s ease",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          {isExpanded ? (
-            <ChevronUp size={16} color={C.gray400} />
-          ) : (
-            <ChevronDown size={16} color={C.gray400} />
-          )}
-          <span style={{ fontWeight: "600", color: C.navy900 }}>
-            {ev.title} ({formatFriendlyDate(ev.eventDate)})
-          </span>
-        </div>
-        <span
-          style={{ color: C.green, fontWeight: "600", fontSize: "0.8125rem" }}
+        <div
+          style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem" }}
         >
-          {ev.attendees?.length || 0} asistieron
-        </span>
+          <div
+            style={{
+              marginTop: ev.eventType === "Partido" ? "0.8rem" : "0.1rem",
+            }}
+          >
+            {isExpanded ? (
+              <ChevronUp size={18} color={C.gray400} />
+            ) : (
+              <ChevronDown size={18} color={C.gray400} />
+            )}
+          </div>
+
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+          >
+            {ev.eventType === "Partido" && (
+              <div style={{ display: "flex" }}>
+                <span
+                  style={{
+                    backgroundColor:
+                      ev.matchType === "Amistoso"
+                        ? "rgba(59, 130, 246, 0.1)"
+                        : "rgba(245, 158, 11, 0.1)",
+                    color: ev.matchType === "Amistoso" ? "#3b82f6" : C.amber,
+                    border: `1px solid ${
+                      ev.matchType === "Amistoso"
+                        ? "rgba(59, 130, 246, 0.3)"
+                        : "rgba(245, 158, 11, 0.3)"
+                    }`,
+                    padding: "2px 8px",
+                    borderRadius: RADIUS.full,
+                    fontSize: "0.6rem",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  {ev.matchType === "Amistoso" ? "Amistoso" : "Oficial"}
+                </span>
+              </div>
+            )}
+
+            <span
+              style={{
+                fontWeight: "700",
+                color: C.navy900,
+                fontSize: "0.95rem",
+                lineHeight: 1.2,
+              }}
+            >
+              {ev.title}{" "}
+              <span
+                style={{
+                  fontWeight: "500",
+                  color: C.gray500,
+                  fontSize: "0.75rem",
+                }}
+              >
+                ({formatFriendlyDate(ev.eventDate)})
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* 👇 NUEVO: SECCIÓN DERECHA CON ASISTENCIAS Y BOTONES DE EDICIÓN 👇 */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: "0.5rem",
+            marginTop: ev.eventType === "Partido" ? "0.8rem" : "0.1rem",
+          }}
+        >
+          <span
+            style={{
+              color: C.green,
+              fontWeight: "700",
+              fontSize: "0.75rem",
+              backgroundColor: "rgba(16, 185, 129, 0.1)",
+              padding: "2px 8px",
+              borderRadius: RADIUS.full,
+            }}
+          >
+            {ev.attendees?.length || 0} asis.
+          </span>
+
+          {perms.canEditAgenda && (
+            <div
+              style={{ display: "flex", gap: "0.25rem" }}
+              onClick={(e) => e.stopPropagation()} // Evita colapsar la tarjeta al hacer clic en Editar
+            >
+              <button
+                onClick={onEdit} // 👈 Pasamos el evento a Agenda.tsx
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: C.navy600,
+                  cursor: "pointer",
+                  padding: "4px",
+                  opacity: 0.6,
+                }}
+              >
+                <Edit size={14} />
+              </button>
+              <button
+                onClick={onDelete} // 👈 Pasamos el evento a Agenda.tsx
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: C.red,
+                  cursor: "pointer",
+                  padding: "4px",
+                  opacity: 0.6,
+                }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── CONTENIDO EXPANDIDO ── */}
@@ -119,6 +233,7 @@ export default function HistoryCard({
             backgroundColor: C.gray50,
             fontSize: "0.875rem",
             color: C.gray600,
+            animation: "fadeIn 0.3s ease",
           }}
         >
           {/* MARCADOR FINAL */}
@@ -505,8 +620,8 @@ export default function HistoryCard({
           {hasPayments && (
             <div
               style={{
-                marginBottom: "1.25rem", // <-- CAMBIAMOS ESTO (antes era marginTop)
-                backgroundColor: "rgba(245, 158, 11, 0.1)", // Fondo ámbar muy suave
+                marginBottom: "1.25rem",
+                backgroundColor: "rgba(245, 158, 11, 0.1)",
                 border: `1px solid ${C.amber}`,
                 borderRadius: RADIUS.md,
                 padding: "0.75rem 1rem",

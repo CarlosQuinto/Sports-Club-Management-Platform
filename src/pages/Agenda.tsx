@@ -41,6 +41,8 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
   const [eventType, setEventType] = useState<"Partido" | "Entrenamiento">(
     "Partido",
   );
+  // 👇 NUEVO ESTADO: Controla si es Oficial o Amistoso 👇
+  const [matchType, setMatchType] = useState<"Oficial" | "Amistoso">("Oficial");
   const [eventTitle, setEventTitle] = useState("");
   const [eventRoutine, setEventRoutine] = useState<any[]>([]);
   const [eventDate, setEventDate] = useState(
@@ -78,6 +80,8 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     e.preventDefault();
     const data = {
       eventType,
+      // 👇 Lo guardamos en Firestore (Solo si es Partido) 👇
+      matchType: eventType === "Partido" ? matchType : null,
       title: eventTitle,
       routine: eventType === "Entrenamiento" ? eventRoutine : [],
       eventDate,
@@ -97,6 +101,7 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
     setEventTitle("");
     setEventLocation("");
     setEventRoutine([]);
+    setMatchType("Oficial"); // Reiniciamos el estado por defecto
   };
 
   const handleDelete = async (id: string) => {
@@ -134,7 +139,7 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
       }}
     >
       {/* ── 1. BALANCE DE TEMPORADA ── */}
-      <SectionCard title="Rendimiento del Equipo" icon={<Trophy size={16} />}>
+      <SectionCard title="Récord Oficial del Club" icon={<Trophy size={16} />}>
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
           {/* Cuadrícula de Estadísticas */}
           <div
@@ -167,6 +172,34 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
               value={statsClub.entrenamientos}
             />
           </div>
+
+          {/* 👇 NOTA ACLARATORIA DE AMISTOSOS (ELEGANTE Y SUTIL) 👇 */}
+          <div
+            style={{
+              backgroundColor: C.gray50,
+              border: `1px dashed ${C.gray300}`,
+              borderRadius: RADIUS.md,
+              padding: "0.6rem 0.8rem",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.5rem",
+            }}
+          >
+            <span style={{ fontSize: "14px" }}>🤝</span>
+            <span
+              style={{
+                fontSize: "0.7rem",
+                color: C.gray500,
+                fontWeight: "600",
+                letterSpacing: "0.02em",
+                textAlign: "center",
+              }}
+            >
+              El historial oficial <strong>no contabiliza</strong> los partidos
+              de carácter amistoso.
+            </span>
+          </div>
         </div>
       </SectionCard>
 
@@ -176,6 +209,8 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
         editingEventId={editingEventId}
         eventType={eventType}
         setEventType={setEventType}
+        matchType={matchType} // 👈 Pasamos el estado
+        setMatchType={setMatchType} // 👈 Pasamos el setter
         eventTitle={eventTitle}
         setEventTitle={setEventTitle}
         eventRoutine={eventRoutine}
@@ -192,6 +227,7 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
           setEventTitle("");
           setEventLocation("");
           setEventRoutine([]);
+          setMatchType("Oficial"); // Reiniciar al cancelar
         }}
       />
 
@@ -240,6 +276,8 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                   setEditingEventId(ev.id);
                   setEventTitle(ev.title);
                   setEventType(ev.eventType);
+                  // 👇 Recuperamos si era Oficial o Amistoso (Por defecto Oficial para eventos viejos) 👇
+                  setMatchType(ev.matchType || "Oficial");
                   setEventDate(ev.eventDate);
                   setEventTime(ev.eventTime);
                   setEventLocation(ev.location);
@@ -330,6 +368,36 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                           });
                       }, 100);
                     }
+                  }}
+                  onDelete={() => handleDelete(ev.id)}
+                  onEdit={() => {
+                    setEditingEventId(ev.id);
+                    setEventTitle(ev.title);
+                    setEventType(ev.eventType);
+                    setMatchType(ev.matchType || "Oficial");
+                    setEventDate(ev.eventDate);
+                    setEventTime(ev.eventTime);
+                    setEventLocation(ev.location);
+                    if (typeof ev.routine === "string" && ev.routine) {
+                      setEventRoutine([
+                        {
+                          type: "phase",
+                          id: Date.now().toString(),
+                          title: "Rutina Guardada",
+                          exercises: [
+                            {
+                              id: "1",
+                              name: ev.routine,
+                              duration: "",
+                              link: "",
+                            },
+                          ],
+                        },
+                      ]);
+                    } else {
+                      setEventRoutine(ev.routine || []);
+                    }
+                    window.scrollTo({ top: 0, behavior: "smooth" }); // 👈 Sube al formulario
                   }}
                   onUpdateScore={handleUpdateScore}
                   onOpenStats={(ev: any) => setStatsModalEvent(ev)}

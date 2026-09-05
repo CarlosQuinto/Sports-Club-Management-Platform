@@ -22,7 +22,7 @@ export default function Home({
     caption?: string;
   } | null>(null);
 
-  // 👇 NUEVO: Filtramos a los jugadores activos para no celebrar cumpleaños de exjugadores
+  // Filtramos a los jugadores activos para no celebrar cumpleaños de exjugadores
   const activePlayers = useMemo(() => {
     return players.filter((p: any) => p.active !== false);
   }, [players]);
@@ -45,15 +45,24 @@ export default function Home({
           const attended = (ev.attendees || []).some(
             (att: string) => att === p.id || att === p.name,
           );
-          if (ev.eventType === "Partido" && attended) matchesAttended++;
-          if (ev.eventType === "Entrenamiento" && attended) trainingsAttended++;
+
+          if (ev.eventType === "Entrenamiento" && attended) {
+            trainingsAttended++;
+          }
 
           if (ev.eventType === "Partido") {
-            ev.stats?.forEach((s: any) => {
-              if (s.scorer === p.id || s.scorer === p.name) goals++;
-              if (s.assist === p.id || s.assist === p.name) assists++;
-            });
-            if (ev.mvp === p.id || ev.mvp === p.name) mvps++;
+            // 👇 Las presencias SÍ cuentan para amistosos y oficiales 👇
+            if (attended) matchesAttended++;
+
+            // 👇 REGLA DE ORO: Goles, Asistencias y MVPs SOLO en OFICIALES 👇
+            if (ev.matchType !== "Amistoso") {
+              ev.stats?.forEach((s: any) => {
+                if (s.scorer === p.id || s.scorer === p.name) goals++;
+                if (s.assist === p.id || s.assist === p.name) assists++;
+              });
+
+              if (ev.mvp === p.id || ev.mvp === p.name) mvps++;
+            }
           }
         });
 
@@ -112,7 +121,7 @@ export default function Home({
         animation: "fadeIn 0.3s ease",
       }}
     >
-      {/* 👇 PASAMOS SOLO LOS ACTIVOS AL BANNER DE CUMPLEAÑOS 👇 */}
+      {/* PASAMOS SOLO LOS ACTIVOS AL BANNER DE CUMPLEAÑOS */}
       <BirthdayBanner players={activePlayers} />
 
       <HeroSection
@@ -122,7 +131,7 @@ export default function Home({
         setLightboxData={setLightboxData}
       />
 
-      {/* 👇 QUITAMOS EL setActiveTab QUE YA NO SE USA 👇 */}
+      {/* MURO DE LA FAMA (Ya viene purificado de amistosos) */}
       <HallOfFame
         topScorers={topScorers}
         topAssists={topAssists}
