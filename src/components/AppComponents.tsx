@@ -2101,7 +2101,7 @@ export const EventCard = ({
         : [];
   const hasPhotos = photos.length > 0;
 
-  // 👈 NUEVO ESTADO: Controla si la tarjeta entera del evento está abierta o colapsada
+  // Estado: Controla si la tarjeta entera del evento está abierta o colapsada
   const [isExpanded, setIsExpanded] = useState(true);
 
   return (
@@ -2119,14 +2119,14 @@ export const EventCard = ({
         boxShadow: SHADOWS.sm,
       }}
     >
-      {/* 👈 NUEVO: ENCABEZADO CLICABLE PARA COLAPSAR LA TARJETA */}
+      {/* ENCABEZADO CLICABLE PARA COLAPSAR LA TARJETA */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "flex-start",
-          marginBottom: isExpanded ? "1rem" : "0", // Quitamos el margen si está colapsado
+          marginBottom: isExpanded ? "1rem" : "0",
           cursor: "pointer",
         }}
       >
@@ -2142,10 +2142,48 @@ export const EventCard = ({
             )}
           </div>
           <div>
-            <Badge color={isMatch ? "green" : "blue"}>
-              {isMatch ? <Trophy size={11} /> : <Target size={11} />}
-              {isMatch ? "Partido" : "Entrenamiento"}
-            </Badge>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.4rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <Badge color={isMatch ? "green" : "blue"}>
+                {isMatch ? <Trophy size={11} /> : <Target size={11} />}
+                {isMatch ? "Partido" : "Entrenamiento"}
+              </Badge>
+
+              {/* 👇 NUEVO: INDICADOR OFICIAL / AMISTOSO 👇 */}
+              {isMatch && (
+                <span
+                  style={{
+                    backgroundColor:
+                      ev.matchType === "Amistoso"
+                        ? "rgba(59, 130, 246, 0.1)" // Azul tenue para Amistoso
+                        : "rgba(245, 158, 11, 0.1)", // Dorado tenue para Oficial
+                    color: ev.matchType === "Amistoso" ? "#3b82f6" : C.amber,
+                    border: `1px solid ${
+                      ev.matchType === "Amistoso"
+                        ? "rgba(59, 130, 246, 0.3)"
+                        : "rgba(245, 158, 11, 0.3)"
+                    }`,
+                    padding: "2px 8px",
+                    borderRadius: RADIUS.full,
+                    fontSize: "0.6rem",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {ev.matchType === "Amistoso" ? "Amistoso" : "Oficial"}
+                </span>
+              )}
+            </div>
+
             <h3
               style={{
                 margin: "0.5rem 0 0 0",
@@ -2163,7 +2201,7 @@ export const EventCard = ({
         {perms.canEditAgenda && (
           <div
             style={{ display: "flex", gap: "0.25rem" }}
-            onClick={(e) => e.stopPropagation()} // 👈 Evita colapsar al hacer clic en Editar/Borrar
+            onClick={(e) => e.stopPropagation()} // Evita colapsar al hacer clic en Editar/Borrar
           >
             <button
               onClick={onEdit}
@@ -2195,7 +2233,7 @@ export const EventCard = ({
         )}
       </div>
 
-      {/* 👈 NUEVO: ENVOLVEMOS EL RESTO EN LA CONDICIÓN isExpanded */}
+      {/* ENVOLVEMOS EL RESTO EN LA CONDICIÓN isExpanded */}
       {isExpanded && (
         <div style={{ animation: "fadeIn 0.3s ease" }}>
           {!isMatch && ev.routine && <RoutineDisplay routine={ev.routine} />}
