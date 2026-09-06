@@ -59,6 +59,7 @@ export default function PlayerModal({
     trainingsAttended = 0,
     cleanSheets = 0,
     goalsConceded = 0,
+    saves = 0,
     mvps = 0,
     yellowCards = 0,
     redCards = 0,
@@ -385,7 +386,10 @@ export default function PlayerModal({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
+                  // 👇 4 columnas para porteros, 3 para jugadores de campo 👇
+                  gridTemplateColumns: isGoalkeeper
+                    ? "repeat(4, 1fr)"
+                    : "repeat(3, 1fr)",
                   gap: "0.75rem",
                 }}
               >
@@ -397,9 +401,16 @@ export default function PlayerModal({
                 {isGoalkeeper ? (
                   <>
                     <PremiumStatBox
-                      icon={<Hand size={18} />}
+                      icon={<Goal size={18} />}
                       label="Goles Recib."
                       value={goalsConceded}
+                    />
+                    {/* 👇 NUEVA CAJA DE ATAJADAS 👇 */}
+                    <PremiumStatBox
+                      icon={<Hand size={18} color="#3b82f6" />}
+                      label="Atajadas"
+                      value={saves}
+                      valueColor="#3b82f6" // Azul brillante para destacar
                     />
                     <PremiumStatBox
                       icon={<Shield size={18} />}
