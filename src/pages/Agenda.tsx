@@ -122,9 +122,34 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
       !isNaN(parseInt(parts[0])) &&
       !isNaN(parseInt(parts[1]))
     ) {
+      const scoreOurs = parseInt(parts[0]);
+      const scoreTheirs = parseInt(parts[1]);
+      let penaltiesOurs = null;
+      let penaltiesTheirs = null;
+
+      // 👇 SI HAY EMPATE, PREGUNTAMOS POR LOS PENALES 👇
+      if (scoreOurs === scoreTheirs) {
+        const penInput = window.prompt(
+          "¡Empate! Si hubo tanda de penales, ingresa el marcador (Nosotros - Rival).\nSi no hubo, déjalo en blanco y da Aceptar.",
+        );
+        if (penInput) {
+          const penParts = penInput.split("-");
+          if (
+            penParts.length === 2 &&
+            !isNaN(parseInt(penParts[0])) &&
+            !isNaN(parseInt(penParts[1]))
+          ) {
+            penaltiesOurs = parseInt(penParts[0]);
+            penaltiesTheirs = parseInt(penParts[1]);
+          }
+        }
+      }
+
       await updateDoc(doc(db, "events", eventId), {
-        scoreOurs: parseInt(parts[0]),
-        scoreTheirs: parseInt(parts[1]),
+        scoreOurs,
+        scoreTheirs,
+        penaltiesOurs,
+        penaltiesTheirs,
       });
     } else alert("Formato incorrecto.");
   };

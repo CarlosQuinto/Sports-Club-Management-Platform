@@ -4,48 +4,54 @@ export function generatePlayerAchievements(
   selectedPlayer: any,
   pStats: any,
   safeEvents: any[],
-  goals: any[] = [], // 👈 Recibimos las metas directamente
+  goals: any[] = [],
 ): Achievement[] {
   if (!selectedPlayer || !pStats) return [];
 
   let maxGoalsInMatch = 0;
   let maxAssistsInMatch = 0;
+  let penaltyGoals = 0; // 👈 NUEVO: Contador de goles de penal
 
   safeEvents.forEach((ev: any) => {
-    if (ev.eventType === "Partido" && ev.stats) {
-      let goalsHere = ev.stats.filter(
-        (s: any) =>
-          s.scorer === selectedPlayer.id || s.scorer === selectedPlayer.name,
-      ).length;
-      let assistsHere = ev.stats.filter(
-        (s: any) =>
-          s.assist === selectedPlayer.id || s.assist === selectedPlayer.name,
-      ).length;
+    // 👇 REGLA DE ORO APLICADA AQUÍ TAMBIÉN: Solo partidos Oficiales 👇
+    if (ev.eventType === "Partido" && ev.matchType !== "Amistoso" && ev.stats) {
+      let goalsHere = 0;
+      let assistsHere = 0;
+
+      ev.stats.forEach((s: any) => {
+        if (
+          s.scorer === selectedPlayer.id ||
+          s.scorer === selectedPlayer.name
+        ) {
+          goalsHere++;
+          if (s.isPenalty) penaltyGoals++; // 👈 Contamos los penales anotados
+        }
+        if (
+          s.assist === selectedPlayer.id ||
+          s.assist === selectedPlayer.name
+        ) {
+          assistsHere++;
+        }
+      });
 
       if (goalsHere > maxGoalsInMatch) maxGoalsInMatch = goalsHere;
       if (assistsHere > maxAssistsInMatch) maxAssistsInMatch = assistsHere;
     }
   });
 
-  // 👇 CÁLCULO DIRECTO DESDE LA COLECCIÓN DE GOALS 👇
+  // CÁLCULO DIRECTO DESDE LA COLECCIÓN DE GOALS
   let totalFromGoals = 0;
-
-  // Recorremos todas las metas...
   goals.forEach((goal: any) => {
-    // Si la meta tiene el mapa de contributions y el ID de nuestro jugador está ahí...
     if (goal.contributions && goal.contributions[selectedPlayer.id]) {
-      // Sumamos el valor aportado
       totalFromGoals += Number(goal.contributions[selectedPlayer.id]);
     }
   });
 
-  // Mantenemos la compatibilidad con el sistema viejo (por si había pagos antes de las metas)
+  // Mantenemos la compatibilidad con el sistema viejo
   const legacyPaid = Number(selectedPlayer.amount_paid) || 0;
-
-  // Total real aportado por el jugador
   const amountPaid = totalFromGoals + legacyPaid;
 
-  // ── DEFINICIÓN DE LOGROS ──
+  // ── DEFINICIÓN DE LOGROS GENERALES ──
   let achievements: Achievement[] = [
     // Goles
     {
@@ -89,6 +95,36 @@ export function generatePlayerAchievements(
       desc: "Llega a 100 goles",
       icon: "🚀",
       unlocked: pStats.goals >= 100,
+    },
+
+    // 👇 NUEVO: LOGROS DE PENALES 👇
+    {
+      id: 60,
+      title: "Sangre Fría",
+      desc: "Anota 1 gol de penal",
+      icon: "🥶",
+      unlocked: penaltyGoals >= 1,
+    },
+    {
+      id: 61,
+      title: "El Especialista",
+      desc: "Anota 3 goles de penal",
+      icon: "🥅",
+      unlocked: penaltyGoals >= 3,
+    },
+    {
+      id: 62,
+      title: "Infalible",
+      desc: "Anota 5 goles de penal",
+      icon: "🎯",
+      unlocked: penaltyGoals >= 5,
+    },
+    {
+      id: 63,
+      title: "Desde los 11 Pasos",
+      desc: "Anota 10 goles de penal",
+      icon: "⚔️",
+      unlocked: penaltyGoals >= 10,
     },
 
     // Goles en un partido
@@ -410,15 +446,17 @@ export function generatePlayerAchievements(
       31,
       32,
       47, // combinados ofensivos
+      // NOTA: No quitamos los de penales porque un portero sí puede ser cobrador oficial
     ]);
     achievements = achievements.filter(
       (ach) => !almostImpossibleIds.has(ach.id),
     );
   }
 
-  // ─── EXCLUSIVO PARA PORTEROS: ARCOS EN CERO ───
+  // ─── EXCLUSIVO PARA PORTEROS: ARCOS EN CERO Y ATAJADAS ───
   if (selectedPlayer.position === "Portero") {
     achievements.push(
+      // Arcos en cero
       {
         id: 16,
         title: "Candado Cerrado",
@@ -453,6 +491,36 @@ export function generatePlayerAchievements(
         desc: "20 arcos en cero",
         icon: "🏰",
         unlocked: pStats.cleanSheets >= 20,
+      },
+
+      // 👇 NUEVO: LOGROS DE ATAJADAS 👇
+      {
+        id: 70,
+        title: "Reflejos Felinos",
+        desc: "Acumula 5 atajadas",
+        icon: "🐈",
+        unlocked: (pStats.saves || 0) >= 5,
+      },
+      {
+        id: 71,
+        title: "Manos de Acero",
+        desc: "Acumula 15 atajadas",
+        icon: "🦾",
+        unlocked: (pStats.saves || 0) >= 15,
+      },
+      {
+        id: 72,
+        title: "Vuelo de Águila",
+        desc: "Acumula 30 atajadas",
+        icon: "🦅",
+        unlocked: (pStats.saves || 0) >= 30,
+      },
+      {
+        id: 73,
+        title: "Santo Patrono",
+        desc: "Acumula 50 atajadas",
+        icon: "🙏",
+        unlocked: (pStats.saves || 0) >= 50,
       },
     );
   }
@@ -497,7 +565,7 @@ export function generatePlayerAchievements(
       },
       {
         id: 111,
-        title: "El Debut Sojado",
+        title: "El Debut Soñado", // Corregí el pequeño typo de "Sojado" a "Soñado"
         desc: "Consigue 1 victoria",
         icon: "🎉",
         unlocked: pStats.winsManaged >= 1,

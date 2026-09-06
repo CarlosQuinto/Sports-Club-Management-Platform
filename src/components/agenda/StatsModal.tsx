@@ -25,8 +25,9 @@ export default function StatsModal({
   onClose,
   onSave,
 }: StatsModalProps) {
+  // 👇 1. Añadimos 'saves' al estado de porteros 👇
   const [statsFormGoalkeepers, setStatsFormGoalkeepers] = useState<
-    { id: string; conceded: number }[]
+    { id: string; conceded: number; saves: number }[]
   >([]);
   const [statsFormMVP, setStatsFormMVP] = useState("");
   const [statsFormManager, setStatsFormManager] = useState("");
@@ -35,10 +36,9 @@ export default function StatsModal({
   );
   const [statsFormRedCards, setStatsFormRedCards] = useState<string[]>([]);
   const [statsFormScorers, setStatsFormScorers] = useState<
-    { scorer: string; assist: string }[]
+    { scorer: string; assist: string; isPenalty?: boolean }[]
   >([]);
 
-  // 👇 NUEVO: Filtramos para obtener SOLO a los jugadores que asistieron a ESTE evento
   const attendingPlayers = useMemo(() => {
     if (!ev || !ev.attendees) return [];
     return players.filter(
@@ -46,11 +46,10 @@ export default function StatsModal({
     );
   }, [players, ev]);
 
-  // Cargar datos iniciales del evento al abrir el modal
   useEffect(() => {
     if (!ev) return;
 
-    let initialGks: { id: string; conceded: number }[] = [];
+    let initialGks: { id: string; conceded: number; saves: number }[] = [];
     if (
       ev.goalkeepers &&
       Array.isArray(ev.goalkeepers) &&
@@ -61,6 +60,7 @@ export default function StatsModal({
           players.find((p: any) => p.name === gk.id || p.id === gk.id)?.id ||
           (gk.id.startsWith("guest-") ? gk.id : `guest-${gk.id}`),
         conceded: gk.conceded || 0,
+        saves: gk.saves || 0, // 👈 Cargamos las atajadas
       }));
     } else if (ev.goalkeeper) {
       const id =
@@ -70,7 +70,7 @@ export default function StatsModal({
         (ev.goalkeeper.startsWith("guest-")
           ? ev.goalkeeper
           : `guest-${ev.goalkeeper}`);
-      initialGks = [{ id, conceded: 0 }];
+      initialGks = [{ id, conceded: 0, saves: 0 }];
     }
     setStatsFormGoalkeepers(initialGks);
 
@@ -128,38 +128,48 @@ export default function StatsModal({
                 ? s.assist
                 : `guest-${s.assist}`
               : ""),
+          isPenalty: !!s.isPenalty,
         })),
       );
     } else {
       const newStats = [];
       for (let i = 0; i < (ev.scoreOurs || 0); i++)
-        newStats.push({ scorer: "", assist: "" });
+        newStats.push({ scorer: "", assist: "", isPenalty: false });
       setStatsFormScorers(newStats);
     }
   }, [ev, players]);
 
   // Funciones de control de estado
   const addGoalkeeper = () =>
-    setStatsFormGoalkeepers([...statsFormGoalkeepers, { id: "", conceded: 0 }]);
+    setStatsFormGoalkeepers([
+      ...statsFormGoalkeepers,
+      { id: "", conceded: 0, saves: 0 },
+    ]); // 👈 Agregamos saves
+
   const removeGoalkeeper = (index: number) =>
     setStatsFormGoalkeepers(statsFormGoalkeepers.filter((_, i) => i !== index));
+
   const updateGoalkeeper = (
     index: number,
-    field: "id" | "conceded",
+    field: "id" | "conceded" | "saves",
     value: string | number,
   ) => {
     const newGks = [...statsFormGoalkeepers];
     if (field === "id") newGks[index].id = value as string;
-    else newGks[index].conceded = Number(value) || 0;
+    else newGks[index][field] = Number(value) || 0; // 👈 Maneja conceded y saves
     setStatsFormGoalkeepers(newGks);
   };
+
   const handleStatChange = (
     index: number,
-    field: "scorer" | "assist",
-    value: string,
+    field: "scorer" | "assist" | "isPenalty",
+    value: string | boolean,
   ) => {
     const newStats = [...statsFormScorers];
-    newStats[index][field] = value;
+    (newStats[index] as any)[field] = value;
+    if (field === "isPenalty" && value === true) {
+      newStats[index].assist = "";
+    }
     setStatsFormScorers(newStats);
   };
 
@@ -167,7 +177,7 @@ export default function StatsModal({
     e.preventDefault();
     onSave({
       goalkeepers: statsFormGoalkeepers.filter((gk) => gk.id.trim() !== ""),
-      goalkeeper: null,
+      goalkeeper: null, // Mantenemos compatibilidad con DB
       stats: statsFormScorers,
       mvp: statsFormMVP,
       manager: statsFormManager,
@@ -198,7 +208,7 @@ export default function StatsModal({
           borderRadius: RADIUS.xl,
           padding: "2rem",
           width: "100%",
-          maxWidth: "400px",
+          maxWidth: "420px", // 👈 Lo hice tantito más ancho para que quepan los 2 inputs
           maxHeight: "90vh",
           overflowY: "auto",
           boxShadow: SHADOWS.xl,
@@ -209,20 +219,70 @@ export default function StatsModal({
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "1.5rem",
+            alignItems: "flex-start",
+            marginBottom: "1.25rem",
           }}
         >
-          <h3
-            style={{
-              fontSize: "1.125rem",
-              fontWeight: "700",
-              color: C.navy900,
-              margin: 0,
-            }}
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}
           >
-            Estadísticas: {ev.title}
-          </h3>
+            <div
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+            >
+              <h3
+                style={{
+                  fontSize: "1.125rem",
+                  fontWeight: "900",
+                  color: C.navy900,
+                  margin: 0,
+                }}
+              >
+                Estadísticas
+              </h3>
+              {ev.matchType === "Amistoso" ? (
+                <span
+                  style={{
+                    backgroundColor: "rgba(59, 130, 246, 0.1)",
+                    color: "#3b82f6",
+                    border: "1px solid rgba(59, 130, 246, 0.3)",
+                    padding: "2px 8px",
+                    borderRadius: RADIUS.full,
+                    fontSize: "0.6rem",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Amistoso
+                </span>
+              ) : (
+                <span
+                  style={{
+                    backgroundColor: "rgba(245, 158, 11, 0.1)",
+                    color: C.amber,
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    padding: "2px 8px",
+                    borderRadius: RADIUS.full,
+                    fontSize: "0.6rem",
+                    fontWeight: "800",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}
+                >
+                  Oficial
+                </span>
+              )}
+            </div>
+            <span
+              style={{
+                fontSize: "0.85rem",
+                color: C.gray500,
+                fontWeight: "600",
+              }}
+            >
+              {ev.title}
+            </span>
+          </div>
           <button
             onClick={onClose}
             style={{
@@ -230,17 +290,78 @@ export default function StatsModal({
               border: "none",
               color: C.gray400,
               cursor: "pointer",
+              padding: "4px",
             }}
           >
             <X size={20} />
           </button>
         </div>
 
+        {ev.matchType === "Amistoso" && (
+          <div
+            style={{
+              backgroundColor: "rgba(59, 130, 246, 0.05)",
+              border: "1px dashed rgba(59, 130, 246, 0.3)",
+              borderRadius: RADIUS.md,
+              padding: "0.75rem",
+              marginBottom: "1.25rem",
+              display: "flex",
+              gap: "0.5rem",
+              alignItems: "flex-start",
+            }}
+          >
+            <span style={{ fontSize: "14px", marginTop: "1px" }}>ℹ️</span>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.75rem",
+                color: C.gray600,
+                lineHeight: 1.4,
+              }}
+            >
+              <strong>Nota:</strong> Al ser un partido amistoso, estos datos se
+              guardarán en la bitácora del juego, pero{" "}
+              <strong>no sumarán</strong> al récord individual de los jugadores
+              en el Muro de la Fama.
+            </p>
+          </div>
+        )}
+
+        {ev.penaltiesOurs != null && (
+          <div
+            style={{
+              backgroundColor: "rgba(245, 158, 11, 0.05)",
+              border: `1px dashed ${C.amber}60`,
+              borderRadius: RADIUS.md,
+              padding: "0.75rem",
+              marginBottom: "1.25rem",
+              display: "flex",
+              gap: "0.5rem",
+              alignItems: "flex-start",
+            }}
+          >
+            <span style={{ fontSize: "14px", marginTop: "1px" }}>⚽</span>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "0.75rem",
+                color: C.gray600,
+                lineHeight: 1.4,
+              }}
+            >
+              <strong>Muerte Súbita:</strong> El partido se definió en penales.
+              Por regla, los goles de la tanda de penales{" "}
+              <strong>no cuentan</strong> para la estadística individual. Abajo
+              solo debes registrar los <strong>{ev.scoreOurs} goles</strong> del
+              tiempo regular.
+            </p>
+          </div>
+        )}
+
         <form
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
         >
-          {/* ── SELECTOR DEL DIRECTOR TÉCNICO ── */}
           <div
             style={{
               backgroundColor: C.gray50,
@@ -282,6 +403,7 @@ export default function StatsModal({
             </FormSelect>
           </div>
 
+          {/* 👇 SECCIÓN DE PORTEROS CON ATAJADAS 👇 */}
           <div
             style={{
               backgroundColor: C.gray50,
@@ -308,7 +430,7 @@ export default function StatsModal({
                   gap: "0.5rem",
                 }}
               >
-                <Hand size={16} /> Porteros (Goles Recibidos)
+                <Hand size={16} /> Porteros (Goles / Atajadas)
               </label>
               <button
                 type="button"
@@ -346,7 +468,7 @@ export default function StatsModal({
                 key={index}
                 style={{
                   display: "flex",
-                  gap: "0.5rem",
+                  gap: "0.4rem",
                   marginBottom: "0.5rem",
                   alignItems: "center",
                 }}
@@ -356,7 +478,7 @@ export default function StatsModal({
                   onChange={(e) =>
                     updateGoalkeeper(index, "id", e.target.value)
                   }
-                  style={{ flex: 2 }}
+                  style={{ flex: 1, minWidth: 0 }} // 👈 Toma todo el espacio disponible
                 >
                   <option value="">Jugador</option>
                   {attendingPlayers.map((p: any) => (
@@ -373,6 +495,7 @@ export default function StatsModal({
                     ))}
                 </FormSelect>
 
+                {/* Input Goles */}
                 <FormInput
                   type="number"
                   min="0"
@@ -380,8 +503,32 @@ export default function StatsModal({
                   onChange={(e) =>
                     updateGoalkeeper(index, "conceded", e.target.value)
                   }
-                  placeholder="Goles"
-                  style={{ flex: 1, width: "80px" }}
+                  placeholder="Gol"
+                  title="Goles Recibidos"
+                  style={{
+                    width: "55px",
+                    flex: "0 0 auto", // 👈 Evita que el input crezca y aplaste al nombre
+                    padding: "0.4rem",
+                    textAlign: "center", // 👈 Números centrados
+                  }}
+                />
+
+                {/* Input Atajadas */}
+                <FormInput
+                  type="number"
+                  min="0"
+                  value={gk.saves}
+                  onChange={(e) =>
+                    updateGoalkeeper(index, "saves", e.target.value)
+                  }
+                  placeholder="Atj"
+                  title="Atajadas (Saves)"
+                  style={{
+                    width: "55px",
+                    flex: "0 0 auto", // 👈 Evita que crezca
+                    padding: "0.4rem",
+                    textAlign: "center", // 👈 Números centrados
+                  }}
                 />
 
                 <button
@@ -392,7 +539,7 @@ export default function StatsModal({
                     border: "none",
                     color: C.gray400,
                     cursor: "pointer",
-                    padding: "0 0.25rem",
+                    padding: "0 0.2rem",
                   }}
                 >
                   <X size={16} />
@@ -642,16 +789,52 @@ export default function StatsModal({
                     border: `1px solid ${C.greenBorder}`,
                   }}
                 >
-                  <p
+                  <div
                     style={{
-                      margin: "0 0 0.5rem 0",
-                      fontSize: "0.8125rem",
-                      fontWeight: "600",
-                      color: C.green,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "0.5rem",
                     }}
                   >
-                    Gol #{i + 1}
-                  </p>
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "0.8125rem",
+                        fontWeight: "800",
+                        color: C.green,
+                      }}
+                    >
+                      Gol #{i + 1}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleStatChange(i, "isPenalty", !stat.isPenalty)
+                      }
+                      style={{
+                        background: stat.isPenalty
+                          ? "rgba(245, 158, 11, 0.15)"
+                          : "transparent",
+                        border: `1px solid ${stat.isPenalty ? C.amber : C.gray300}`,
+                        color: stat.isPenalty ? C.amber : C.gray500,
+                        borderRadius: RADIUS.full,
+                        padding: "0.2rem 0.6rem",
+                        fontSize: "0.65rem",
+                        fontWeight: "800",
+                        textTransform: "uppercase",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "0.3rem",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {stat.isPenalty ? "🥅 De Penal" : "Marcar Penal"}
+                    </button>
+                  </div>
+
                   <FormSelect
                     value={stat.scorer}
                     onChange={(e) =>
@@ -673,25 +856,37 @@ export default function StatsModal({
                         </option>
                       ))}
                   </FormSelect>
+
                   <FormSelect
                     value={stat.assist}
                     onChange={(e) =>
                       handleStatChange(i, "assist", e.target.value)
                     }
+                    disabled={stat.isPenalty}
+                    style={{
+                      opacity: stat.isPenalty ? 0.4 : 1,
+                      cursor: stat.isPenalty ? "not-allowed" : "pointer",
+                    }}
                   >
-                    <option value="">¿Asistencia? (Opcional)</option>
-                    {attendingPlayers.map((p: any) => (
-                      <option key={`as-${p.id}`} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                    {(ev.attendees || [])
-                      .filter((id: string) => id.startsWith("guest-"))
-                      .map((guestId: string) => (
-                        <option key={`as-${guestId}`} value={guestId}>
-                          {getPlayerName(guestId, players)} (Invitado)
+                    <option value="">
+                      {stat.isPenalty
+                        ? "Sin asistencia (Fue Penal)"
+                        : "¿Asistencia? (Opcional)"}
+                    </option>
+                    {!stat.isPenalty &&
+                      attendingPlayers.map((p: any) => (
+                        <option key={`as-${p.id}`} value={p.id}>
+                          {p.name}
                         </option>
                       ))}
+                    {!stat.isPenalty &&
+                      (ev.attendees || [])
+                        .filter((id: string) => id.startsWith("guest-"))
+                        .map((guestId: string) => (
+                          <option key={`as-${guestId}`} value={guestId}>
+                            {getPlayerName(guestId, players)} (Invitado)
+                          </option>
+                        ))}
                   </FormSelect>
                 </div>
               ))}

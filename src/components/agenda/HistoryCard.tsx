@@ -114,7 +114,7 @@ export default function HistoryCard({
           </div>
 
           <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+            style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}
           >
             {ev.eventType === "Partido" && (
               <div style={{ display: "flex" }}>
@@ -143,29 +143,34 @@ export default function HistoryCard({
               </div>
             )}
 
-            <span
-              style={{
-                fontWeight: "700",
-                color: C.navy900,
-                fontSize: "0.95rem",
-                lineHeight: 1.2,
-              }}
-            >
-              {ev.title}{" "}
+            {/* 👇 AQUÍ ESTÁ LA MAGIA: TÍTULO Y FECHA SEPARADOS 👇 */}
+            <div style={{ display: "flex", flexDirection: "column" }}>
               <span
                 style={{
-                  fontWeight: "500",
-                  color: C.gray500,
-                  fontSize: "0.75rem",
+                  fontWeight: "800",
+                  color: C.navy900,
+                  fontSize: "0.95rem",
+                  lineHeight: 1.2,
                 }}
               >
-                ({formatFriendlyDate(ev.eventDate)})
+                {ev.title}
               </span>
-            </span>
+              <span
+                style={{
+                  fontWeight: "600",
+                  color: C.gray400,
+                  fontSize: "0.7rem",
+                  marginTop: "0.15rem",
+                }}
+              >
+                {formatFriendlyDate(ev.eventDate)}
+              </span>
+            </div>
+            {/* 👆 ========================================== 👆 */}
           </div>
         </div>
 
-        {/* 👇 NUEVO: SECCIÓN DERECHA CON ASISTENCIAS Y BOTONES DE EDICIÓN 👇 */}
+        {/* SECCIÓN DERECHA CON ASISTENCIAS Y BOTONES DE EDICIÓN */}
         <div
           style={{
             display: "flex",
@@ -191,10 +196,10 @@ export default function HistoryCard({
           {perms.canEditAgenda && (
             <div
               style={{ display: "flex", gap: "0.25rem" }}
-              onClick={(e) => e.stopPropagation()} // Evita colapsar la tarjeta al hacer clic en Editar
+              onClick={(e) => e.stopPropagation()}
             >
               <button
-                onClick={onEdit} // 👈 Pasamos el evento a Agenda.tsx
+                onClick={onEdit}
                 style={{
                   background: "none",
                   border: "none",
@@ -207,7 +212,7 @@ export default function HistoryCard({
                 <Edit size={14} />
               </button>
               <button
-                onClick={onDelete} // 👈 Pasamos el evento a Agenda.tsx
+                onClick={onDelete}
                 style={{
                   background: "none",
                   border: "none",
@@ -261,6 +266,8 @@ export default function HistoryCard({
               >
                 Marcador Final
               </p>
+
+              {/* NÚMEROS PRINCIPALES */}
               <div
                 style={{
                   display: "flex",
@@ -272,6 +279,7 @@ export default function HistoryCard({
                   fontFamily: "'Inter', monospace",
                 }}
               >
+                {/* NOSOTROS */}
                 <div
                   style={{
                     display: "flex",
@@ -281,8 +289,13 @@ export default function HistoryCard({
                 >
                   <span
                     style={{
+                      // 👇 SE PINTA VERDE SI GANAMOS EN TIEMPO REGULAR O EN PENALES 👇
                       color:
-                        ev.scoreOurs > ev.scoreTheirs ? "#34d399" : C.white,
+                        ev.scoreOurs > ev.scoreTheirs ||
+                        (ev.scoreOurs === ev.scoreTheirs &&
+                          ev.penaltiesOurs > ev.penaltiesTheirs)
+                          ? "#34d399"
+                          : C.white,
                     }}
                   >
                     {ev.scoreOurs ?? "-"}
@@ -298,7 +311,10 @@ export default function HistoryCard({
                     NOSOTROS
                   </span>
                 </div>
+
                 <span style={{ fontSize: "1rem", color: C.navy400 }}>VS</span>
+
+                {/* RIVAL */}
                 <div
                   style={{
                     display: "flex",
@@ -308,8 +324,13 @@ export default function HistoryCard({
                 >
                   <span
                     style={{
+                      // 👇 SE PINTA ROJO SI PERDIMOS EN TIEMPO REGULAR O EN PENALES 👇
                       color:
-                        ev.scoreTheirs > ev.scoreOurs ? "#f87171" : C.white,
+                        ev.scoreTheirs > ev.scoreOurs ||
+                        (ev.scoreOurs === ev.scoreTheirs &&
+                          ev.penaltiesTheirs > ev.penaltiesOurs)
+                          ? "#f87171"
+                          : C.white,
                     }}
                   >
                     {ev.scoreTheirs ?? "-"}
@@ -326,6 +347,43 @@ export default function HistoryCard({
                   </span>
                 </div>
               </div>
+
+              {/* 👇 RESULTADO DE LA TANDA DE PENALES 👇 */}
+              {ev.penaltiesOurs != null && ev.penaltiesTheirs != null && (
+                <div
+                  style={{
+                    marginTop: "1rem",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                    backgroundColor: "rgba(245, 158, 11, 0.15)",
+                    border: `1px solid rgba(245, 158, 11, 0.3)`,
+                    padding: "0.3rem 0.8rem",
+                    borderRadius: RADIUS.full,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "0.8125rem",
+                      color: C.amber,
+                      fontWeight: "800",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    PENALES:
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "1rem",
+                      color: C.white,
+                      fontWeight: "900",
+                      fontFamily: "'Inter', monospace",
+                    }}
+                  >
+                    {ev.penaltiesOurs} - {ev.penaltiesTheirs}
+                  </span>
+                </div>
+              )}
 
               {/* ESTADÍSTICAS DEL PARTIDO (MVP, Goles, Asistencias, Tarjetas) */}
               {(ev.mvp ||
