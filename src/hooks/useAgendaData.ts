@@ -13,19 +13,33 @@ export function useAgendaData(events: any[]) {
         (e: any) => new Date(e.eventDate + "T" + e.eventTime) < new Date(),
       )
       .forEach((ev: any) => {
-        if (ev.eventType === "Partido") {
-          // 👇 REGLA DE ORO: Ignorar los amistosos en el conteo oficial 👇
-          if (ev.matchType !== "Amistoso") {
+        if (ev.eventType === "Entrenamiento") {
+          entrenamientos++;
+        } else if (ev.eventType === "Partido") {
+          if (ev.matchType === "Amistoso") {
+            // 👇 Los amistosos cuentan como entrenamiento para el club también 👇
+            entrenamientos++;
+          } else {
+            // 👇 Partidos Oficiales (Suman al récord) 👇
             jugados++;
+
             if (ev.scoreOurs !== undefined && ev.scoreTheirs !== undefined) {
-              if (ev.scoreOurs > ev.scoreTheirs) ganados++;
-              if (ev.scoreOurs < ev.scoreTheirs) perdidos++;
+              if (ev.scoreOurs > ev.scoreTheirs) {
+                ganados++;
+              } else if (ev.scoreOurs < ev.scoreTheirs) {
+                perdidos++;
+              } else if (ev.scoreOurs === ev.scoreTheirs) {
+                // 👇 MAGIA: Desempatamos usando los penales (si existen) 👇
+                if (ev.penaltiesOurs != null && ev.penaltiesTheirs != null) {
+                  if (ev.penaltiesOurs > ev.penaltiesTheirs) ganados++;
+                  if (ev.penaltiesOurs < ev.penaltiesTheirs) perdidos++;
+                }
+              }
             }
           }
-        } else {
-          entrenamientos++;
         }
       });
+
     return { jugados, ganados, perdidos, entrenamientos };
   }, [events]);
 

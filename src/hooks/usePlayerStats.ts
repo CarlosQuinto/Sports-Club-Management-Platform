@@ -14,7 +14,9 @@ export function usePlayerStats(
       let goals = 0,
         assists = 0,
         cleanSheets = 0,
-        goalsConceded = 0;
+        goalsConceded = 0,
+        saves = 0;
+
       let matchesAttended = 0,
         trainingsAttended = 0,
         mvps = 0;
@@ -32,13 +34,17 @@ export function usePlayerStats(
             (att: string) => att === p.id || att === p.name,
           );
 
-          if (ev.eventType === "Entrenamiento" && attended) {
-            trainingsAttended++;
-          }
-
-          if (ev.eventType === "Partido") {
-            // 👇 Asistencia a partidos cuenta siempre (Oficial o Amistoso) 👇
-            if (attended) matchesAttended++;
+          if (ev.eventType === "Entrenamiento") {
+            if (attended) trainingsAttended++;
+          } else if (ev.eventType === "Partido") {
+            // 👇 NUEVA LÓGICA DE ASISTENCIAS 👇
+            if (attended) {
+              if (ev.matchType === "Amistoso") {
+                trainingsAttended++; // Los amistosos suman como entrenamiento
+              } else {
+                matchesAttended++; // Solo los oficiales suman como partido
+              }
+            }
 
             // 👇 El resto de estadísticas SOLO si NO ES Amistoso 👇
             if (ev.matchType !== "Amistoso") {
@@ -71,6 +77,7 @@ export function usePlayerStats(
                 );
                 if (gkEntry) {
                   goalsConceded += gkEntry.conceded || 0;
+                  saves += gkEntry.saves || 0;
                   if ((gkEntry.conceded || 0) === 0) cleanSheets++;
                 }
               } else if (ev.goalkeeper) {
@@ -99,6 +106,7 @@ export function usePlayerStats(
         assists,
         cleanSheets,
         goalsConceded,
+        saves,
         matchesAttended,
         trainingsAttended,
         mvps,
