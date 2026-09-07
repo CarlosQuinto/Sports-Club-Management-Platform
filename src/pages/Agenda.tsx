@@ -221,8 +221,8 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
                 textAlign: "center",
               }}
             >
-              El historial oficial <strong>no contabiliza</strong> los partidos
-              de carácter amistoso.
+              El historial oficial <strong>contabiliza</strong> los partidos de
+              carácter amistoso como entrenamientos.
             </span>
           </div>
         </div>
