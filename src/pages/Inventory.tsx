@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   Package,
@@ -21,7 +21,7 @@ import {
   Droplet,
   BriefcaseMedical,
   LayoutTemplate,
-  Timer, // 👈 NUEVOS ÍCONOS
+  Timer,
 } from "lucide-react";
 import {
   collection,
@@ -36,14 +36,12 @@ import {
   RADIUS,
   SHADOWS,
   SectionCard,
-  KPICard,
   FormInput,
   FormSelect,
   PrimaryButton,
   SecondaryButton,
 } from "../components/ui";
 
-// ── FUNCIÓN PARA ASIGNAR ÍCONOS AUTOMÁTICAMENTE ──
 // ── SÚPER DICCIONARIO PARA ASIGNAR ÍCONOS AUTOMÁTICAMENTE ──
 const getIconForItem = (name: string, size = 20, color = C.navy600) => {
   const lowerName = name.toLowerCase();
@@ -159,6 +157,264 @@ const conditionRank: Record<string, number> = {
   Perdido: 4,
 };
 
+// 👇 NUEVO: COMPONENTE DE RESUMEN EN LISTA 👇
+const InventorySummaryModal = ({ category, inventory, onClose }: any) => {
+  // Bloquear el scroll y escuchar ESC
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  // Filtrar el inventario según la tarjeta seleccionada
+  let summaryItems: any[] = [];
+  let title = "";
+  let TitleIcon = Package;
+  let headerColor = C.navy900;
+
+  if (category === "Almacén") {
+    summaryItems = inventory.filter((i: any) => i.condition !== "Perdido");
+    title = "Inventario Activo";
+    TitleIcon = Package;
+  } else if (category === "Dañados") {
+    summaryItems = inventory.filter((i: any) => i.condition === "Malo");
+    title = "Artículos para Reposición";
+    TitleIcon = AlertTriangle;
+    headerColor = C.red;
+  } else if (category === "Extraviados") {
+    summaryItems = inventory.filter((i: any) => i.condition === "Perdido");
+    title = "Artículos Extraviados";
+    TitleIcon = HelpCircle;
+    headerColor = C.amber;
+  }
+
+  // Ordenar alfabéticamente
+  summaryItems.sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+  const totalUnidades = summaryItems.reduce(
+    (sum, item) => sum + (item.quantity || 0),
+    0,
+  );
+
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(10, 25, 41, 0.90)",
+        zIndex: 9999,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: "1rem",
+        animation: "fadeIn 0.2s ease",
+      }}
+      onClick={onClose}
+    >
+      <div
+        style={{
+          backgroundColor: C.white,
+          borderRadius: RADIUS.xl,
+          width: "100%",
+          maxWidth: "450px",
+          maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: SHADOWS.xl,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Cabecera del Resumen */}
+        <div
+          style={{ padding: "1.5rem", borderBottom: `1px solid ${C.gray200}` }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                color: headerColor,
+                fontWeight: "800",
+                fontSize: "1.125rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <TitleIcon size={20} color={headerColor} /> {title}
+            </h3>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.gray400,
+                cursor: "pointer",
+                padding: "0.25rem",
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Lista Deslizable */}
+        <div
+          className="hide-scroll"
+          style={{ flex: 1, overflowY: "auto", padding: "1rem 1.5rem" }}
+        >
+          {summaryItems.map((item: any, i: number) => {
+            const isBad = item.condition === "Malo";
+            const isRegular = item.condition === "Regular";
+            const isLost = item.condition === "Perdido";
+
+            const accentColor = isBad
+              ? C.red
+              : isRegular
+                ? C.amber
+                : isLost
+                  ? C.gray500
+                  : C.green;
+            const bgAccent = isBad
+              ? "rgba(239, 68, 68, 0.15)"
+              : isRegular
+                ? "rgba(245, 158, 11, 0.15)"
+                : isLost
+                  ? "rgba(107, 114, 128, 0.15)"
+                  : "rgba(16, 185, 129, 0.15)";
+
+            return (
+              <div
+                key={item.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "1rem",
+                  padding: "0.75rem 0",
+                  borderBottom:
+                    i === summaryItems.length - 1
+                      ? "none"
+                      : `1px solid ${C.gray100}`,
+                }}
+              >
+                <div
+                  style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: RADIUS.md,
+                    backgroundColor: bgAccent,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {getIconForItem(item.name, 22, accentColor)}
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontWeight: "800",
+                      color: C.navy900,
+                      fontSize: "0.95rem",
+                    }}
+                  >
+                    {item.name}
+                  </p>
+                  <span
+                    style={{
+                      fontSize: "0.7rem",
+                      color: accentColor,
+                      fontWeight: "800",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                    }}
+                  >
+                    {item.condition}
+                  </span>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <span
+                    style={{
+                      display: "block",
+                      fontSize: "1.25rem",
+                      fontWeight: "900",
+                      color: C.navy900,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    {item.quantity}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "0.65rem",
+                      color: C.gray500,
+                      fontWeight: "700",
+                    }}
+                  >
+                    pzs
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Pie: Total de la categoría */}
+        <div
+          style={{
+            padding: "1.25rem 1.5rem",
+            backgroundColor: C.gray50,
+            borderTop: `1px solid ${C.gray200}`,
+            borderBottomLeftRadius: RADIUS.xl,
+            borderBottomRightRadius: RADIUS.xl,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <span
+            style={{
+              fontWeight: "700",
+              color: C.gray600,
+              fontSize: "0.875rem",
+            }}
+          >
+            Total en esta lista:
+          </span>
+          <span
+            style={{
+              fontWeight: "900",
+              color: headerColor,
+              fontSize: "1.25rem",
+            }}
+          >
+            {totalUnidades} pzs
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+};
+// 👆 ========================================= 👆
+
 export default function Inventory({ inventory, perms }: any) {
   const [itemName, setItemName] = useState("");
   const [itemQty, setItemQty] = useState(1);
@@ -166,10 +422,13 @@ export default function Inventory({ inventory, perms }: any) {
 
   const [animatingId, setAnimatingId] = useState<string | null>(null);
 
-  // 👇 ESTADOS PARA EL MODAL DE DIVIDIR/CAMBIAR ESTADO 👇
+  // Estados para el modal de dividir/cambiar estado
   const [condItem, setCondItem] = useState<any | null>(null);
   const [condQty, setCondQty] = useState<number>(1);
   const [condNew, setCondNew] = useState<string>("Malo");
+
+  // 👇 NUEVO: ESTADO PARA LA LISTA DE RESUMEN 👇
+  const [summaryCategory, setSummaryCategory] = useState<string | null>(null);
 
   // Cálculos de KPIs (Excluimos perdidos del total del almacén)
   const totalArticulos = inventory
@@ -188,7 +447,6 @@ export default function Inventory({ inventory, perms }: any) {
     e.preventDefault();
     if (!itemName.trim() || itemQty < 1) return;
 
-    // Buscar si ya existe el mismo artículo con el mismo estado
     const existingItem = inventory.find(
       (i: any) =>
         i.name.toLowerCase() === itemName.trim().toLowerCase() &&
@@ -228,7 +486,6 @@ export default function Inventory({ inventory, perms }: any) {
 
   const handleConfirmConditionChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Validaciones extra por seguridad
     if (
       !condItem ||
       condQty < 1 ||
@@ -238,7 +495,6 @@ export default function Inventory({ inventory, perms }: any) {
       return;
 
     const isFullTransfer = condQty === condItem.quantity;
-
     const targetItem = inventory.find(
       (i: any) => i.name === condItem.name && i.condition === condNew,
     );
@@ -296,7 +552,7 @@ export default function Inventory({ inventory, perms }: any) {
         animation: "fadeIn 0.3s ease",
       }}
     >
-      {/* ── KPI CARDS (DASHBOARD PREMIUM) ── */}
+      {/* ── KPI CARDS (BOTONES INTERACTIVOS) ── */}
       <div
         style={{
           display: "grid",
@@ -304,8 +560,9 @@ export default function Inventory({ inventory, perms }: any) {
           gap: "0.75rem",
         }}
       >
-        {/* TARJETA 1: EN ALMACÉN (Fuerte / Ancla visual) */}
-        <div
+        {/* TARJETA 1: EN ALMACÉN */}
+        <button
+          onClick={() => totalArticulos > 0 && setSummaryCategory("Almacén")}
           style={{
             position: "relative",
             backgroundColor: C.navy900,
@@ -318,7 +575,18 @@ export default function Inventory({ inventory, perms }: any) {
             flexDirection: "column",
             justifyContent: "space-between",
             minHeight: "110px",
+            border: "none",
+            textAlign: "left",
+            cursor: totalArticulos > 0 ? "pointer" : "default",
+            transition: "transform 0.2s ease",
+            opacity: totalArticulos > 0 ? 1 : 0.7,
+            fontFamily: "inherit",
           }}
+          onMouseOver={(e) =>
+            totalArticulos > 0 &&
+            (e.currentTarget.style.transform = "scale(1.03)")
+          }
+          onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           <Package
             size={90}
@@ -372,10 +640,11 @@ export default function Inventory({ inventory, perms }: any) {
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
-        {/* TARJETA 2: CRÍTICOS (Dinámica) */}
-        <div
+        {/* TARJETA 2: DAÑADOS */}
+        <button
+          onClick={() => articulosMalos > 0 && setSummaryCategory("Dañados")}
           style={{
             position: "relative",
             backgroundColor: articulosMalos > 0 ? "#fef2f2" : "#f0fdf4",
@@ -389,7 +658,17 @@ export default function Inventory({ inventory, perms }: any) {
             flexDirection: "column",
             justifyContent: "space-between",
             minHeight: "110px",
+            textAlign: "left",
+            cursor: articulosMalos > 0 ? "pointer" : "default",
+            transition: "transform 0.2s ease",
+            opacity: articulosMalos > 0 ? 1 : 0.7,
+            fontFamily: "inherit",
           }}
+          onMouseOver={(e) =>
+            articulosMalos > 0 &&
+            (e.currentTarget.style.transform = "scale(1.03)")
+          }
+          onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           <AlertTriangle
             size={90}
@@ -446,10 +725,13 @@ export default function Inventory({ inventory, perms }: any) {
                 : "Todo en buen estado"}
             </p>
           </div>
-        </div>
+        </button>
 
-        {/* TARJETA 3: EXTRAVIADOS (Dinámica) */}
-        <div
+        {/* TARJETA 3: EXTRAVIADOS */}
+        <button
+          onClick={() =>
+            articulosPerdidos > 0 && setSummaryCategory("Extraviados")
+          }
           style={{
             position: "relative",
             backgroundColor: articulosPerdidos > 0 ? "#fffbeb" : "#f0fdf4",
@@ -463,7 +745,17 @@ export default function Inventory({ inventory, perms }: any) {
             flexDirection: "column",
             justifyContent: "space-between",
             minHeight: "110px",
+            textAlign: "left",
+            cursor: articulosPerdidos > 0 ? "pointer" : "default",
+            transition: "transform 0.2s ease",
+            opacity: articulosPerdidos > 0 ? 1 : 0.7,
+            fontFamily: "inherit",
           }}
+          onMouseOver={(e) =>
+            articulosPerdidos > 0 &&
+            (e.currentTarget.style.transform = "scale(1.03)")
+          }
+          onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           <HelpCircle
             size={90}
@@ -518,9 +810,10 @@ export default function Inventory({ inventory, perms }: any) {
               {articulosPerdidos > 0 ? "Sin localizar" : "Inventario completo"}
             </p>
           </div>
-        </div>
+        </button>
       </div>
 
+      {/* ── INGRESAR NUEVO MATERIAL ── */}
       {perms.canEditInventory && (
         <SectionCard
           title="Ingresar Nuevo Material"
@@ -740,7 +1033,7 @@ export default function Inventory({ inventory, perms }: any) {
                           <button
                             onClick={() => {
                               setCondItem(item);
-                              setCondQty(1); // Siempre empezamos sugiriendo mover 1
+                              setCondQty(1);
                               setCondNew(
                                 item.condition === "Bueno" ? "Regular" : "Malo",
                               );
@@ -920,7 +1213,7 @@ export default function Inventory({ inventory, perms }: any) {
         )}
       </div>
 
-      {/* 👇 MODAL MEJORADO PARA DIVIDIR / CAMBIAR ESTADO 👇 */}
+      {/* 👇 MODAL PARA DIVIDIR / CAMBIAR ESTADO 👇 */}
       {condItem &&
         createPortal(
           <div
@@ -1008,7 +1301,6 @@ export default function Inventory({ inventory, perms }: any) {
                     alignItems: "flex-end",
                   }}
                 >
-                  {/* 👇 CONTROLES +- BLOQUEADOS POR MÁXIMO 👇 */}
                   <div style={{ flex: 1 }}>
                     <label
                       style={{
@@ -1030,7 +1322,7 @@ export default function Inventory({ inventory, perms }: any) {
                         borderRadius: RADIUS.md,
                         border: `1px solid ${C.gray200}`,
                         padding: "0.2rem",
-                        height: "42px", // Para que empate con la altura del Select
+                        height: "42px",
                       }}
                     >
                       <button
@@ -1148,6 +1440,15 @@ export default function Inventory({ inventory, perms }: any) {
           </div>,
           document.body,
         )}
+
+      {/* 👇 NUEVO: RENDERIZADO DE LA LISTA DE RESUMEN 👇 */}
+      {summaryCategory && (
+        <InventorySummaryModal
+          category={summaryCategory}
+          inventory={inventory}
+          onClose={() => setSummaryCategory(null)}
+        />
+      )}
     </div>
   );
 }
