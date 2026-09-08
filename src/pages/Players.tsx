@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Users,
   ArrowRightLeft,
@@ -8,6 +9,9 @@ import {
   Hand,
   Shield,
   Goal,
+  X,
+  TrendingUp,
+  Star,
 } from "lucide-react";
 import {
   collection,
@@ -25,6 +29,410 @@ import PlayerRow from "../components/players/PlayerRow";
 import PlayerModal from "../components/players/PlayerModal";
 import { usePlayerStats } from "../hooks/usePlayerStats";
 
+// 👇 COMPONENTE AUXILIAR PARA EL CARRUSEL (CALIBRADO PARA DESKTOP Y MÓVIL) 👇
+const PlayersCarouselModal = ({ position, playersStats, onClose }: any) => {
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Bloquear el scroll y escuchar la tecla ESC
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  // Filtramos solo a los jugadores activos de la posición seleccionada
+  const carouselPlayers = playersStats.filter(
+    (p: any) => p.position === position && p.active !== false,
+  );
+
+  // ── LÓGICA DE INTERACCIÓN DEL CARRUSEL ──
+  const handleScroll = () => {
+    if (!carouselRef.current) return;
+    const container = carouselRef.current;
+
+    // Calculamos el centro exacto de la pantalla
+    const center = container.scrollLeft + container.clientWidth / 2;
+    let closestIndex = 0;
+    let minDistance = Infinity;
+
+    Array.from(container.children).forEach((child: any, i) => {
+      const childCenter = child.offsetLeft + child.offsetWidth / 2;
+      const distance = Math.abs(center - childCenter);
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestIndex = i;
+      }
+    });
+
+    if (closestIndex !== activeIndex) {
+      setActiveIndex(closestIndex);
+    }
+  };
+
+  const scrollToCard = (index: number) => {
+    if (!carouselRef.current) return;
+    const container = carouselRef.current;
+    const child = container.children[index] as HTMLElement;
+
+    if (child) {
+      const containerCenter = container.clientWidth / 2;
+      const childCenter = child.offsetWidth / 2;
+      // offsetLeft nos da la posición real del elemento dentro del contenedor
+      const scrollPos = child.offsetLeft - containerCenter + childCenter;
+
+      container.scrollTo({
+        left: scrollPos,
+        behavior: "smooth",
+      });
+    }
+  };
+  // ─────────────────────────────────────────
+
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(10, 25, 41, 0.95)",
+        zIndex: 9999,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        animation: "fadeIn 0.2s ease",
+      }}
+      onClick={onClose}
+    >
+      {/* Botón flotante para cerrar */}
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          top: "1.5rem",
+          right: "1.5rem",
+          background: "rgba(255,255,255,0.1)",
+          border: "none",
+          borderRadius: "50%",
+          padding: "0.5rem",
+          color: C.white,
+          cursor: "pointer",
+          zIndex: 10,
+        }}
+      >
+        <X size={24} />
+      </button>
+
+      <h3
+        style={{
+          color: C.white,
+          marginBottom: "1rem",
+          fontWeight: "800",
+          fontSize: "1.25rem",
+        }}
+      >
+        Galería de {position}s
+      </h3>
+
+      {/* Contenedor del Carrusel */}
+      <div
+        ref={carouselRef}
+        onScroll={handleScroll}
+        className="hide-scroll"
+        style={{
+          display: "flex",
+          overflowX: "auto",
+          scrollSnapType: "x mandatory",
+          width: "100vw", // Obligamos a que tome el ancho total de la pantalla
+          // 👇 MAGIA CSS: Relleno dinámico para centrar siempre la primera y última carta 👇
+          padding: "2rem max(7.5vw, calc(50vw - 160px))",
+          gap: "1.5rem",
+          alignItems: "center",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {carouselPlayers.map((p: any, i: number) => {
+          const isGoalkeeper = p.position === "Portero";
+          const isCentered = activeIndex === i;
+
+          return (
+            <div
+              key={p.id}
+              onClick={() => scrollToCard(i)}
+              style={{
+                flex: "0 0 auto",
+                width: "85vw",
+                maxWidth: "320px", // Tope máximo para escritorio
+                scrollSnapAlign: "center",
+                backgroundColor: C.white,
+                borderRadius: RADIUS.xl,
+                overflow: "hidden",
+                boxShadow: isCentered
+                  ? `0 0 20px rgba(245, 158, 11, 0.4)`
+                  : SHADOWS.xl,
+                position: "relative",
+                transform: isCentered ? "scale(1)" : "scale(0.92)",
+                opacity: isCentered ? 1 : 0.5,
+                transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                cursor: "pointer",
+              }}
+            >
+              {/* Mitad Superior Oscura */}
+              <div
+                style={{
+                  backgroundColor: C.navy900,
+                  height: "80px",
+                  width: "100%",
+                }}
+              />
+
+              {/* Foto del Jugador superpuesta */}
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  marginTop: "-45px",
+                }}
+              >
+                <img
+                  src={
+                    p.imageUrl ||
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=102a43&color=fff&size=150`
+                  }
+                  alt={p.name}
+                  style={{
+                    width: "90px",
+                    height: "90px",
+                    borderRadius: "50%",
+                    border: `4px solid ${C.white}`,
+                    backgroundColor: C.navy900,
+                    objectFit: "cover",
+                  }}
+                />
+              </div>
+
+              {/* Información y Estadísticas */}
+              <div
+                style={{
+                  padding: "1rem 1.5rem 1.5rem 1.5rem",
+                  textAlign: "center",
+                }}
+              >
+                <h4
+                  style={{
+                    margin: 0,
+                    fontSize: "1.25rem",
+                    fontWeight: "800",
+                    color: C.navy900,
+                  }}
+                >
+                  {p.name}
+                </h4>
+                <p
+                  style={{
+                    margin: "0.25rem 0 1rem 0",
+                    fontSize: "0.8125rem",
+                    color: C.gray500,
+                    fontWeight: "600",
+                  }}
+                >
+                  <span style={{ color: C.amber, fontWeight: "800" }}>
+                    #{p.number}
+                  </span>{" "}
+                  • {p.position}
+                </p>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: "0.5rem",
+                  }}
+                >
+                  <MiniStat
+                    icon={<Trophy size={16} />}
+                    label="Partidos"
+                    value={p.matchesAttended}
+                  />
+
+                  {isGoalkeeper ? (
+                    <>
+                      <MiniStat
+                        icon={<Hand size={16} color="#3b82f6" />}
+                        label="Atajadas"
+                        value={p.saves || 0}
+                        color="#3b82f6"
+                      />
+                      <MiniStat
+                        icon={<Shield size={16} />}
+                        label="Arcos Cero"
+                        value={p.cleanSheets || 0}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <MiniStat
+                        icon={<Goal size={16} />}
+                        label="Goles"
+                        value={p.goals}
+                      />
+                      <MiniStat
+                        icon={<TrendingUp size={16} />}
+                        label="Asistencias"
+                        value={p.assists}
+                      />
+                    </>
+                  )}
+
+                  <MiniStat
+                    icon={<Target size={16} />}
+                    label="Prácticas"
+                    value={p.trainingsAttended}
+                  />
+                  <MiniStat
+                    icon={<Star size={16} color={C.amber} fill={C.amber} />}
+                    label="MVPs"
+                    value={p.mvps}
+                    color={C.amber}
+                  />
+
+                  {/* Tarjetas combinadas */}
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      backgroundColor: C.gray50,
+                      padding: "0.5rem",
+                      borderRadius: RADIUS.md,
+                      border: `1px solid ${C.gray200}`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.25rem",
+                        marginBottom: "0.15rem",
+                      }}
+                    >
+                      <span style={{ fontSize: "12px" }}>🟨</span>
+                      <span style={{ fontSize: "12px" }}>🟥</span>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "0.4rem",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "0.9rem",
+                          fontWeight: "800",
+                          color: C.navy900,
+                        }}
+                      >
+                        {p.yellowCards}
+                      </span>
+                      <span style={{ fontSize: "0.8rem", color: C.gray300 }}>
+                        |
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "0.9rem",
+                          fontWeight: "800",
+                          color: C.red,
+                        }}
+                      >
+                        {p.redCards}
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.55rem",
+                        fontWeight: "700",
+                        color: C.gray500,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Tarjetas
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 👇 PUNTOS INTERACTIVOS 👇 */}
+      <div
+        style={{ display: "flex", gap: "0.5rem", marginTop: "1.5rem" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {carouselPlayers.map((_: any, i: number) => (
+          <button
+            key={i}
+            onClick={() => scrollToCard(i)}
+            style={{
+              width: activeIndex === i ? "24px" : "8px",
+              height: "8px",
+              borderRadius: RADIUS.full,
+              backgroundColor:
+                activeIndex === i ? C.amber : "rgba(255,255,255,0.3)",
+              border: "none",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              padding: 0,
+            }}
+            aria-label={`Ver jugador ${i + 1}`}
+          />
+        ))}
+      </div>
+    </div>,
+    document.body,
+  );
+};
+
+// Mini componente para los cuadritos de estadística del carrusel
+const MiniStat = ({ icon, label, value, color = C.navy900 }: any) => (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      backgroundColor: C.gray50,
+      padding: "0.5rem",
+      borderRadius: RADIUS.md,
+      border: `1px solid ${C.gray200}`,
+    }}
+  >
+    <div style={{ marginBottom: "0.15rem", color: C.gray500 }}>{icon}</div>
+    <span style={{ fontSize: "1rem", fontWeight: "800", color }}>{value}</span>
+    <span
+      style={{
+        fontSize: "0.55rem",
+        fontWeight: "700",
+        color: C.gray500,
+        textTransform: "uppercase",
+      }}
+    >
+      {label}
+    </span>
+  </div>
+);
+
+// 👆 ========================================= 👆
+
 export default function Players({ players, events, perms, goals }: any) {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
   const [playerName, setPlayerName] = useState("");
@@ -40,6 +448,9 @@ export default function Players({ players, events, perms, goals }: any) {
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [positionFilter, setPositionFilter] = useState("Todos");
+
+  // 👇 NUEVO ESTADO PARA EL CARRUSEL 👇
+  const [carouselPosition, setCarouselPosition] = useState<string | null>(null);
 
   const canEditAll = perms?.canEditJugadores;
   const isPressOnly =
@@ -250,7 +661,7 @@ export default function Players({ players, events, perms, goals }: any) {
             )}
           </div>
 
-          {/* Estadísticas en Línea */}
+          {/* Estadísticas en Línea (AHORA SON BOTONES) */}
           <div
             style={{
               display: "grid",
@@ -260,12 +671,24 @@ export default function Players({ players, events, perms, goals }: any) {
               paddingTop: "0.25rem",
             }}
           >
-            <div
+            <button
+              onClick={() =>
+                positionCounts.Portero > 0 && setCarouselPosition("Portero")
+              }
               style={{
                 backgroundColor: C.gray50,
                 padding: "0.5rem",
                 borderRadius: RADIUS.sm,
+                border: `1px solid ${C.gray200}`,
+                cursor: positionCounts.Portero > 0 ? "pointer" : "default",
+                transition: "all 0.2s ease",
+                opacity: positionCounts.Portero > 0 ? 1 : 0.6,
               }}
+              onMouseOver={(e) =>
+                positionCounts.Portero > 0 &&
+                (e.currentTarget.style.transform = "scale(1.03)")
+              }
+              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               <span
                 style={{
@@ -287,13 +710,26 @@ export default function Players({ players, events, perms, goals }: any) {
               >
                 {positionCounts.Portero}
               </span>
-            </div>
-            <div
+            </button>
+
+            <button
+              onClick={() =>
+                positionCounts.Defensa > 0 && setCarouselPosition("Defensa")
+              }
               style={{
                 backgroundColor: C.gray50,
                 padding: "0.5rem",
                 borderRadius: RADIUS.sm,
+                border: `1px solid ${C.gray200}`,
+                cursor: positionCounts.Defensa > 0 ? "pointer" : "default",
+                transition: "all 0.2s ease",
+                opacity: positionCounts.Defensa > 0 ? 1 : 0.6,
               }}
+              onMouseOver={(e) =>
+                positionCounts.Defensa > 0 &&
+                (e.currentTarget.style.transform = "scale(1.03)")
+              }
+              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               <span
                 style={{
@@ -315,13 +751,26 @@ export default function Players({ players, events, perms, goals }: any) {
               >
                 {positionCounts.Defensa}
               </span>
-            </div>
-            <div
+            </button>
+
+            <button
+              onClick={() =>
+                positionCounts.Medio > 0 && setCarouselPosition("Medio")
+              }
               style={{
                 backgroundColor: C.gray50,
                 padding: "0.5rem",
                 borderRadius: RADIUS.sm,
+                border: `1px solid ${C.gray200}`,
+                cursor: positionCounts.Medio > 0 ? "pointer" : "default",
+                transition: "all 0.2s ease",
+                opacity: positionCounts.Medio > 0 ? 1 : 0.6,
               }}
+              onMouseOver={(e) =>
+                positionCounts.Medio > 0 &&
+                (e.currentTarget.style.transform = "scale(1.03)")
+              }
+              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               <span
                 style={{
@@ -343,13 +792,26 @@ export default function Players({ players, events, perms, goals }: any) {
               >
                 {positionCounts.Medio}
               </span>
-            </div>
-            <div
+            </button>
+
+            <button
+              onClick={() =>
+                positionCounts.Delantero > 0 && setCarouselPosition("Delantero")
+              }
               style={{
                 backgroundColor: C.gray50,
                 padding: "0.5rem",
                 borderRadius: RADIUS.sm,
+                border: `1px solid ${C.gray200}`,
+                cursor: positionCounts.Delantero > 0 ? "pointer" : "default",
+                transition: "all 0.2s ease",
+                opacity: positionCounts.Delantero > 0 ? 1 : 0.6,
               }}
+              onMouseOver={(e) =>
+                positionCounts.Delantero > 0 &&
+                (e.currentTarget.style.transform = "scale(1.03)")
+              }
+              onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
               <span
                 style={{
@@ -371,7 +833,7 @@ export default function Players({ players, events, perms, goals }: any) {
               >
                 {positionCounts.Delantero}
               </span>
-            </div>
+            </button>
           </div>
         </div>
       </SectionCard>
@@ -553,6 +1015,7 @@ export default function Players({ players, events, perms, goals }: any) {
         )}
       </SectionCard>
 
+      {/* MODALES ADICIONALES */}
       {showCompareModal && (
         <CompareModal
           playersStats={clubPlayerStats}
@@ -566,6 +1029,15 @@ export default function Players({ players, events, perms, goals }: any) {
           pStats={clubPlayerStats.find((p: any) => p.id === selectedPlayer.id)}
           achievements={selectedPlayerAchievements}
           onClose={() => setSelectedPlayer(null)}
+        />
+      )}
+
+      {/* 👇 NUEVO: RENDERIZADO DEL CARRUSEL 👇 */}
+      {carouselPosition && (
+        <PlayersCarouselModal
+          position={carouselPosition}
+          playersStats={clubPlayerStats}
+          onClose={() => setCarouselPosition(null)}
         />
       )}
     </div>
