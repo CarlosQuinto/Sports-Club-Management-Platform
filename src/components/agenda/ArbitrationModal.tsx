@@ -44,6 +44,30 @@ export default function ArbitrationModal({
     }
   }, [ev, players]);
 
+  // 👇 NUEVO: BLOQUEAR SCROLL Y ESCUCHAR TECLA "ESC" 👇
+  useEffect(() => {
+    // 1. Bloqueamos el scroll del fondo
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // 2. Creamos la función que escucha el teclado
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose(); // Si es ESC, cerramos el modal
+      }
+    };
+
+    // 3. Le decimos al navegador que empiece a escuchar
+    window.addEventListener("keydown", handleKeyDown);
+
+    // 4. Limpieza (Cleanup) cuando el modal se cierra
+    return () => {
+      document.body.style.overflow = originalOverflow; // Devolvemos el scroll
+      window.removeEventListener("keydown", handleKeyDown); // Dejamos de escuchar el teclado
+    };
+  }, [onClose]);
+  // 👆 ======================================================= 👆
+
   const updatePayment = (playerId: string, amount: number) => {
     setArbitrationPayments((prev) => {
       const exists = prev.find((p) => p.playerId === playerId);

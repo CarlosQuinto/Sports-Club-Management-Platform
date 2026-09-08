@@ -757,6 +757,7 @@ export const LineupModal = ({
   const initialMode = ev.lineup?.mode || "Fut-7";
   const initialForm = ev.lineup?.formation || "2-3-1";
 
+  // Normalizar posiciones previas
   const normalizedPositions: Record<string, string> = {};
   Object.entries(ev.lineup?.positions || {}).forEach(([pos, val]: any) => {
     const p = players.find((pl: any) => pl.name === val || pl.id === val);
@@ -771,34 +772,47 @@ export const LineupModal = ({
   const [formation, setFormation] = useState(initialForm);
   const [positions, setPositions] =
     useState<Record<string, string>>(normalizedPositions);
-  const [activePos, setActivePos] = useState<string | null>(null);
+
+  // Ahora selectedPlayer puede ser alguien de la banca O de la cancha
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
+
+  // ── 1. MANTENER JUGADORES AL CAMBIAR FORMACIÓN ──
+  const reassignPlayersToNewFormation = (newMode: string, newForm: string) => {
+    const newNodes = FORMATIONS[newMode][newForm].nodes;
+    const currentlyPlayingIds = Object.values(positions);
+    const newPos: Record<string, string> = {};
+
+    // Asignamos los jugadores actuales a los nuevos nodos en orden
+    currentlyPlayingIds.forEach((playerId, index) => {
+      if (index < newNodes.length) {
+        newPos[newNodes[index].id] = playerId;
+      }
+    });
+    return newPos;
+  };
 
   const handleModeChange = (newMode: string) => {
+    const newForm = Object.keys(FORMATIONS[newMode])[0];
+    const newPos = reassignPlayersToNewFormation(newMode, newForm);
     setMode(newMode);
-    setFormation(Object.keys(FORMATIONS[newMode])[0]);
-    setPositions({});
-    setActivePos(null);
+    setFormation(newForm);
+    setPositions(newPos);
+    setSelectedPlayerId(null);
   };
 
   const handleFormationChange = (newForm: string) => {
+    const newPos = reassignPlayersToNewFormation(mode, newForm);
     setFormation(newForm);
-    setPositions({});
-    setActivePos(null);
-  };
-
-  const selectPlayerForPos = (playerId: string | null) => {
-    if (!activePos) return;
-    const newPos = { ...positions };
-    if (playerId) {
-      Object.keys(newPos).forEach((key) => {
-        if (newPos[key] === playerId) delete newPos[key];
-      });
-      newPos[activePos] = playerId;
-    } else {
-      delete newPos[activePos];
-    }
     setPositions(newPos);
-    setActivePos(null);
+    setSelectedPlayerId(null);
   };
 
   const handleLoadBase = () => {
@@ -815,31 +829,161 @@ export const LineupModal = ({
             : `guest-${val}`;
       });
       setPositions(normalizedBase);
+      setSelectedPlayerId(null);
     } else {
       alert("Aún no hay táctica base guardada para esta modalidad.");
     }
   };
 
-  const currentFormationData = FORMATIONS[mode][formation];
-  const currentNodes = currentFormationData.nodes;
-  const currentDesc = currentFormationData.desc;
+  // ── 2. LÓGICA DE INTERCAMBIO (SWAP) PARA DRAG & DROP ──
+  const handleDragStart = (e: React.DragEvent, playerId: string) => {
+    if (!perms.canEditAgenda) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData("playerId", playerId);
+    e.dataTransfer.effectAllowed = "move";
+  };
 
+  const handleDropToNode = (e: React.DragEvent, targetNodeId: string) => {
+    e.preventDefault();
+    if (!perms.canEditAgenda) return;
+
+    const draggedPlayerId = e.dataTransfer.getData("playerId");
+    if (!draggedPlayerId) return;
+
+    executeSwap(draggedPlayerId, targetNodeId);
+  };
+
+  const handleDropToBench = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (!perms.canEditAgenda) return;
+
+    const draggedPlayerId = e.dataTransfer.getData("playerId");
+    if (!draggedPlayerId) return;
+
+    sendToBench(draggedPlayerId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  // ── 3. LÓGICA DE INTERCAMBIO (SWAP) PARA CLICS (MÓVILES) ──
+  const executeSwap = (originPlayerId: string, targetNodeId: string) => {
+    const newPos = { ...positions };
+
+    // Buscar dónde estaba el jugador original
+    const oldNodeId = Object.keys(newPos).find(
+      (k) => newPos[k] === originPlayerId,
+    );
+
+    // Ver quién ocupa el lugar destino
+    const targetPlayerId = newPos[targetNodeId];
+
+    // Quitar al original de su puesto antiguo
+    if (oldNodeId) delete newPos[oldNodeId];
+
+    // Colocar al original en el nuevo puesto
+    newPos[targetNodeId] = originPlayerId;
+
+    // Si había alguien en el puesto nuevo, lo mandamos al puesto viejo (Swap)
+    if (targetPlayerId && targetPlayerId !== originPlayerId) {
+      if (oldNodeId) {
+        newPos[oldNodeId] = targetPlayerId;
+      }
+      // Si oldNodeId no existe, significa que el original venía de la banca,
+      // por lo que el targetPlayerId se queda fuera (se va a la banca).
+    }
+
+    setPositions(newPos);
+    setSelectedPlayerId(null);
+  };
+
+  const sendToBench = (playerId: string) => {
+    const newPos = { ...positions };
+    const oldNodeId = Object.keys(newPos).find((k) => newPos[k] === playerId);
+    if (oldNodeId) {
+      delete newPos[oldNodeId];
+      setPositions(newPos);
+    }
+    setSelectedPlayerId(null);
+  };
+
+  // Clic en un círculo de la cancha
+  const handleNodeClick = (nodeId: string) => {
+    if (!perms.canEditAgenda) return;
+
+    const targetPlayerId = positions[nodeId];
+
+    if (selectedPlayerId) {
+      // Si teníamos a alguien seleccionado, ejecutamos el intercambio
+      executeSwap(selectedPlayerId, nodeId);
+    } else {
+      // Si no hay nadie seleccionado y tocamos a un jugador, lo seleccionamos
+      if (targetPlayerId) {
+        setSelectedPlayerId(targetPlayerId);
+      }
+    }
+  };
+
+  // Clic en la zona general de la banca (para mandar a un jugador a sentarse)
+  const handleBenchZoneClick = () => {
+    if (!perms.canEditAgenda || !selectedPlayerId) return;
+    sendToBench(selectedPlayerId);
+  };
+
+  // Clic específico sobre un jugador que ya está sentado en la banca
+  const handleBenchPlayerClick = (e: React.MouseEvent, playerId: string) => {
+    e.stopPropagation(); // Evita que se dispare handleBenchZoneClick
+    if (!perms.canEditAgenda) return;
+
+    if (selectedPlayerId === playerId) {
+      // Deseleccionar si se toca de nuevo
+      setSelectedPlayerId(null);
+    } else if (selectedPlayerId) {
+      // Si teníamos a alguien del campo seleccionado y tocamos a alguien de la banca: INTERCAMBIO
+      const oldNodeId = Object.keys(positions).find(
+        (k) => positions[k] === selectedPlayerId,
+      );
+      if (oldNodeId) {
+        const newPos = { ...positions };
+        newPos[oldNodeId] = playerId; // El de la banca entra al campo
+        setPositions(newPos); // El seleccionado original se va a la banca
+      }
+      setSelectedPlayerId(null);
+    } else {
+      // Seleccionar al de la banca
+      setSelectedPlayerId(playerId);
+    }
+  };
+
+  // Listas de jugadores
   const attendeesIds = (ev.attendees || []).map((att: string) => {
     const p = players.find((pl: any) => pl.name === att || pl.id === att);
     return p ? p.id : att.startsWith("guest-") ? att : `guest-${att}`;
   });
+
+  const benchPlayers = attendeesIds.filter(
+    (id: string) => !Object.values(positions).includes(id),
+  );
+
+  const currentFormationData = FORMATIONS[mode][formation];
+  const currentNodes = currentFormationData.nodes;
 
   const modalContent = (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        backgroundColor: "rgba(10, 25, 41, 0.90)",
+        backgroundColor: "rgba(10, 25, 41, 0.95)",
         zIndex: 9999,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         padding: "1rem",
+        animation: "fadeIn 0.2s ease",
       }}
       onClick={onClose}
     >
@@ -847,62 +991,65 @@ export const LineupModal = ({
         style={{
           backgroundColor: C.navy900,
           borderRadius: RADIUS.xl,
-          padding: "1.5rem",
           width: "100%",
-          maxWidth: "450px",
+          maxWidth: "480px",
           maxHeight: "95vh",
           display: "flex",
           flexDirection: "column",
           boxShadow: SHADOWS.xl,
-          position: "relative",
           overflow: "hidden",
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* CABECERA */}
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "1rem",
+            padding: "1.25rem 1.25rem 0.5rem 1.25rem",
+            borderBottom: `1px solid ${C.navy800}`,
           }}
         >
-          <h3
-            style={{
-              fontSize: "1.125rem",
-              fontWeight: "800",
-              color: C.white,
-              margin: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
-          >
-            <LayoutTemplate size={20} color={C.amber} /> Pizarra Táctica
-          </h3>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              color: C.navy300,
-              cursor: "pointer",
-            }}
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {perms.canEditAgenda ? (
           <div
             style={{
               display: "flex",
-              flexDirection: "column",
-              gap: "0.5rem",
+              justifyContent: "space-between",
+              alignItems: "center",
               marginBottom: "1rem",
             }}
           >
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <h3
+              style={{
+                fontSize: "1.125rem",
+                fontWeight: "800",
+                color: C.white,
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <LayoutTemplate size={20} color={C.amber} /> Pizarra Táctica
+            </h3>
+            <button
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                color: C.navy300,
+                cursor: "pointer",
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {perms.canEditAgenda && (
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                marginBottom: "0.75rem",
+              }}
+            >
               <FormSelect
                 value={mode}
                 onChange={(e) => handleModeChange(e.target.value)}
@@ -913,30 +1060,11 @@ export const LineupModal = ({
                   border: "none",
                 }}
               >
-                <option
-                  value="Fut-5"
-                  style={{ color: C.gray800, backgroundColor: C.white }}
-                >
-                  Fútbol 5
-                </option>
-                <option
-                  value="Fut-7"
-                  style={{ color: C.gray800, backgroundColor: C.white }}
-                >
-                  Fútbol 7
-                </option>
-                <option
-                  value="Fut-9"
-                  style={{ color: C.gray800, backgroundColor: C.white }}
-                >
-                  Fútbol 9
-                </option>
-                <option
-                  value="Fut-11"
-                  style={{ color: C.gray800, backgroundColor: C.white }}
-                >
-                  Fútbol 11
-                </option>
+                {Object.keys(FORMATIONS).map((m) => (
+                  <option key={m} value={m} style={{ color: C.gray800 }}>
+                    {m}
+                  </option>
+                ))}
               </FormSelect>
               <FormSelect
                 value={formation}
@@ -949,485 +1077,428 @@ export const LineupModal = ({
                 }}
               >
                 {Object.keys(FORMATIONS[mode]).map((f) => (
-                  <option
-                    key={f}
-                    value={f}
-                    style={{ color: C.gray800, backgroundColor: C.white }}
-                  >
+                  <option key={f} value={f} style={{ color: C.gray800 }}>
                     {f}
                   </option>
                 ))}
               </FormSelect>
             </div>
+          )}
+        </div>
 
-            <div
-              style={{
-                padding: "0.6rem 0.8rem",
-                backgroundColor: "rgba(0,0,0,0.2)",
-                borderRadius: RADIUS.md,
-                borderLeft: `3px solid ${C.amber}`,
-              }}
-            >
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.75rem",
-                  color: C.navy100,
-                  fontStyle: "italic",
-                  lineHeight: "1.4",
-                }}
-              >
-                {currentDesc}
-              </p>
-            </div>
-
-            <div
-              style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}
-            >
-              <button
-                onClick={handleLoadBase}
-                style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.05)",
-                  border: `1px solid ${C.navy600}`,
-                  borderRadius: RADIUS.md,
-                  color: C.navy200,
-                  fontSize: "0.6875rem",
-                  fontWeight: "600",
-                  padding: "0.5rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: "0.3rem",
-                }}
-              >
-                <Download size={14} /> Cargar Base
-              </button>
-              <button
-                onClick={() => onSaveBase(mode, { formation, positions })}
-                style={{
-                  flex: 1,
-                  background: "rgba(255,255,255,0.05)",
-                  border: `1px solid ${C.navy600}`,
-                  borderRadius: RADIUS.md,
-                  color: C.navy200,
-                  fontSize: "0.6875rem",
-                  fontWeight: "600",
-                  padding: "0.5rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: "0.3rem",
-                }}
-              >
-                <Save size={14} /> Guardar Base
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div style={{ marginBottom: "1rem", textAlign: "center" }}>
-            <p
-              style={{
-                margin: "0 0 0.5rem 0",
-                color: C.amber,
-                fontWeight: "800",
-                fontSize: "0.9rem",
-              }}
-            >
-              Modalidad: {mode} • Formación: {formation}
-            </p>
-            <p
-              style={{
-                margin: 0,
-                fontSize: "0.75rem",
-                color: C.navy200,
-                fontStyle: "italic",
-              }}
-            >
-              {currentDesc}
-            </p>
-          </div>
-        )}
-
+        {/* CONTENEDOR CENTRAL: LA CANCHA */}
         <div
           style={{
             position: "relative",
             width: "100%",
-            height: "420px",
-            backgroundColor: "#166534",
-            borderRadius: RADIUS.md,
-            border: "2px solid rgba(255,255,255,0.3)",
-            overflow: "hidden",
-            boxShadow: "inset 0 0 20px rgba(0,0,0,0.5)",
+            padding: "1rem",
+            backgroundColor: C.navy900,
           }}
         >
           <div
             style={{
-              position: "absolute",
-              top: "50%",
-              left: 0,
-              right: 0,
-              height: "2px",
-              backgroundColor: "rgba(255,255,255,0.3)",
-              transform: "translateY(-50%)",
+              position: "relative",
+              width: "100%",
+              height: "450px",
+              borderRadius: RADIUS.md,
+              border: "2px solid rgba(255,255,255,0.4)",
+              overflow: "hidden",
+              boxShadow: "inset 0 0 30px rgba(0,0,0,0.6)",
+              background:
+                "repeating-linear-gradient(0deg, #166534, #166534 10%, #14532d 10%, #14532d 20%)",
             }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              width: "80px",
-              height: "80px",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderRadius: "50%",
-              transform: "translate(-50%, -50%)",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: "25%",
-              right: "25%",
-              height: "15%",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderTop: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: "25%",
-              right: "25%",
-              height: "15%",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderBottom: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: "40%",
-              right: "40%",
-              height: "6%",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderTop: "none",
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: 0,
-              left: "40%",
-              right: "40%",
-              height: "6%",
-              border: "2px solid rgba(255,255,255,0.3)",
-              borderBottom: "none",
-            }}
-          />
+          >
+            {/* LÍNEAS DEL CAMPO */}
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: 0,
+                right: 0,
+                height: "2px",
+                backgroundColor: "rgba(255,255,255,0.4)",
+                transform: "translateY(-50%)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                width: "90px",
+                height: "90px",
+                border: "2px solid rgba(255,255,255,0.4)",
+                borderRadius: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                width: "8px",
+                height: "8px",
+                backgroundColor: "rgba(255,255,255,0.6)",
+                borderRadius: "50%",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
 
-          {currentNodes.map((pos) => {
-            const playerId = positions[pos.id];
-            const playerInfo = getPlayerInfo(playerId, players);
-            const isGuest = playerId && playerId.startsWith("guest-");
-            const displayName = getPlayerName(playerId, players);
-            const isMissing = playerId && !attendeesIds.includes(playerId);
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: "20%",
+                right: "20%",
+                height: "16%",
+                border: "2px solid rgba(255,255,255,0.4)",
+                borderTop: "none",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: "20%",
+                right: "20%",
+                height: "16%",
+                border: "2px solid rgba(255,255,255,0.4)",
+                borderBottom: "none",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: "12%",
+                left: "50%",
+                width: "60px",
+                height: "60px",
+                border: "2px solid rgba(255,255,255,0.4)",
+                borderRadius: "50%",
+                transform: "translate(-50%, 0)",
+                clipPath: "polygon(0 50%, 100% 50%, 100% 100%, 0 100%)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                bottom: "12%",
+                left: "50%",
+                width: "60px",
+                height: "60px",
+                border: "2px solid rgba(255,255,255,0.4)",
+                borderRadius: "50%",
+                transform: "translate(-50%, 0)",
+                clipPath: "polygon(0 0, 100% 0, 100% 50%, 0 50%)",
+              }}
+            />
 
-            return (
-              <div
-                key={pos.id}
-                onClick={() => perms.canEditAgenda && setActivePos(pos.id)}
-                style={{
-                  position: "absolute",
-                  top: pos.top,
-                  left: pos.left,
-                  transform: "translate(-50%, -50%)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  cursor: perms.canEditAgenda ? "pointer" : "default",
-                  transition: "top 0.4s ease, left 0.4s ease",
-                }}
-              >
-                {playerId ? (
-                  <div
-                    style={{
-                      position: "relative",
-                      opacity: isMissing ? 0.6 : 1,
-                    }}
-                  >
-                    <img
-                      src={
-                        playerInfo?.imageUrl ||
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=${isGuest ? "475569" : "102a43"}&color=fff&size=50`
-                      }
-                      alt={displayName}
+            {/* NODOS (POSICIONES) */}
+            {currentNodes.map((pos) => {
+              const playerId = positions[pos.id];
+              const isSelectedNode =
+                selectedPlayerId !== null && selectedPlayerId !== playerId;
+              const isThisPlayerSelected = selectedPlayerId === playerId;
+
+              return (
+                <div
+                  key={pos.id}
+                  onClick={() => handleNodeClick(pos.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDropToNode(e, pos.id)}
+                  style={{
+                    position: "absolute",
+                    top: pos.top,
+                    left: pos.left,
+                    transform: "translate(-50%, -50%)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    cursor: perms.canEditAgenda ? "pointer" : "default",
+                    transition:
+                      "all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                    zIndex: playerId ? 10 : 5,
+                  }}
+                >
+                  {playerId ? (
+                    <div
+                      draggable={perms.canEditAgenda}
+                      onDragStart={(e) => handleDragStart(e, playerId)}
+                      style={{
+                        transform: isThisPlayerSelected
+                          ? "scale(1.1) translateY(-4px)"
+                          : "scale(1)",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      <PlayerToken
+                        playerId={playerId}
+                        players={players}
+                        isSelected={isThisPlayerSelected}
+                      />
+                    </div>
+                  ) : (
+                    <div
                       style={{
                         width: "36px",
                         height: "36px",
                         borderRadius: "50%",
-                        border: isGuest
-                          ? `2px dashed ${C.gray400}`
-                          : `2px solid ${C.white}`,
-                        objectFit: "cover",
-                        backgroundColor: isGuest ? C.gray700 : C.navy900,
-                        boxShadow: SHADOWS.md,
+                        border: isSelectedNode
+                          ? `2px dashed ${C.amber}`
+                          : "2px dashed rgba(255,255,255,0.3)",
+                        backgroundColor: isSelectedNode
+                          ? "rgba(245, 158, 11, 0.2)"
+                          : "rgba(255,255,255,0.05)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        animation: isSelectedNode
+                          ? "pulse 1.5s infinite"
+                          : "none",
                       }}
-                    />
-
-                    {isGuest && !isMissing && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: -5,
-                          right: -5,
-                          background: C.white,
-                          borderRadius: "50%",
-                          padding: "2px",
-                          boxShadow: SHADOWS.sm,
-                        }}
-                        title="Invitado"
-                      >
-                        <Star size={10} color={C.gray600} fill={C.gray600} />
-                      </div>
-                    )}
-
-                    {isMissing && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: -5,
-                          right: -5,
-                          background: C.white,
-                          borderRadius: "50%",
-                          padding: "1px",
-                          boxShadow: SHADOWS.sm,
-                        }}
-                        title="Falta confirmación de asistencia"
-                      >
-                        <AlertTriangle size={14} color={C.amber} />
-                      </div>
-                    )}
-                    <div style={{ textAlign: "center", marginTop: "2px" }}>
-                      <span
-                        style={{
-                          backgroundColor: "rgba(0,0,0,0.7)",
-                          color: isGuest ? C.gray300 : C.white,
-                          fontSize: "0.625rem",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          fontWeight: "600",
-                          whiteSpace: "nowrap",
-                          textShadow: "0 1px 1px rgba(0,0,0,0.5)",
-                        }}
-                      >
-                        {displayName.split(" ")[0]}
-                      </span>
+                    >
+                      <Plus
+                        size={16}
+                        color={
+                          isSelectedNode ? C.amber : "rgba(255,255,255,0.3)"
+                        }
+                      />
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "50%",
-                      border: "2px dashed rgba(255,255,255,0.5)",
-                      backgroundColor: "rgba(255,255,255,0.1)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    {perms.canEditAgenda && (
-                      <Plus size={16} color="rgba(255,255,255,0.6)" />
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {activePos && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                backgroundColor: "rgba(10,25,41,0.95)",
-                zIndex: 10,
-                display: "flex",
-                flexDirection: "column",
-                padding: "1rem",
-                animation: "fadeIn 0.2s",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "1rem",
-                }}
-              >
-                <h4 style={{ margin: 0, color: C.white, fontSize: "0.875rem" }}>
-                  Elegir Jugador
-                </h4>
-                <button
-                  onClick={() => setActivePos(null)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: C.navy300,
-                    cursor: "pointer",
-                  }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div
-                className="hide-scroll"
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                {attendeesIds.length === 0 ? (
-                  <p
-                    style={{
-                      color: C.gray400,
-                      fontSize: "0.8125rem",
-                      textAlign: "center",
-                      marginTop: "2rem",
-                    }}
-                  >
-                    Aún no hay jugadores confirmados para este evento.
-                  </p>
-                ) : (
-                  attendeesIds.map((attId: string) => {
-                    const isSelectedElsewhere =
-                      Object.values(positions).includes(attId) &&
-                      positions[activePos] !== attId;
-                    const playerInfo = getPlayerInfo(attId, players);
-                    const isGuest = attId.startsWith("guest-");
-                    const displayName = getPlayerName(attId, players);
-
-                    return (
-                      <button
-                        key={attId}
-                        onClick={() => selectPlayerForPos(attId)}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          width: "100%",
-                          padding: "0.75rem",
-                          borderRadius: RADIUS.md,
-                          border: "none",
-                          backgroundColor: "rgba(255,255,255,0.1)",
-                          color: C.white,
-                          cursor: "pointer",
-                          textAlign: "left",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.4rem",
-                          }}
-                        >
-                          <span
-                            style={{ fontWeight: "600", fontSize: "0.875rem" }}
-                          >
-                            {displayName}
-                          </span>
-                          {playerInfo && (
-                            <span
-                              style={{
-                                fontSize: "0.6875rem",
-                                color: C.navy300,
-                                fontWeight: "500",
-                              }}
-                            >
-                              - {playerInfo.position}
-                            </span>
-                          )}
-                          {isGuest && (
-                            <Badge
-                              color="gray"
-                              style={{
-                                fontSize: "0.6rem",
-                                padding: "2px 4px",
-                                backgroundColor: "rgba(255,255,255,0.15)",
-                                color: C.gray300,
-                              }}
-                            >
-                              Invitado
-                            </Badge>
-                          )}
-                        </div>
-                        {isSelectedElsewhere && (
-                          <span
-                            style={{
-                              fontSize: "0.625rem",
-                              color: C.amber,
-                              backgroundColor: "rgba(217,119,6,0.2)",
-                              padding: "2px 6px",
-                              borderRadius: "4px",
-                            }}
-                          >
-                            Mover aquí
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-
-              {positions[activePos] && (
-                <button
-                  onClick={() => selectPlayerForPos(null)}
-                  style={{
-                    marginTop: "1rem",
-                    padding: "0.75rem",
-                    borderRadius: RADIUS.md,
-                    border: `1px solid ${C.red}`,
-                    backgroundColor: "transparent",
-                    color: C.red,
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
-                >
-                  Quitar jugador de esta posición
-                </button>
-              )}
-            </div>
-          )}
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
+        {/* 👇 EL BANQUILLO INTELIGENTE 👇 */}
         {perms.canEditAgenda && (
-          <PrimaryButton
-            onClick={() => onSave(ev.id, { mode, formation, positions })}
-            style={{ width: "100%", marginTop: "1.25rem", padding: "0.875rem" }}
+          <div
+            onClick={handleBenchZoneClick}
+            onDragOver={handleDragOver}
+            onDrop={handleDropToBench}
+            style={{
+              backgroundColor: C.navy800,
+              padding: "1rem",
+              borderTop: `1px solid ${C.navy700}`,
+              cursor: selectedPlayerId ? "pointer" : "default", // Da la pista de que puedes hacer clic para sentarlo
+            }}
           >
-            Guardar Alineación Oficial
-          </PrimaryButton>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "0.5rem",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: "700",
+                  color: C.navy300,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                Banquillo ({benchPlayers.length})
+              </span>
+              <span style={{ fontSize: "0.65rem", color: C.gray400 }}>
+                {selectedPlayerId
+                  ? "👆 Toca una posición o aquí para sentarlo"
+                  : "👆 Toca o Arrastra un jugador"}
+              </span>
+            </div>
+
+            <div
+              className="hide-scroll"
+              style={{
+                display: "flex",
+                gap: "0.75rem",
+                overflowX: "auto",
+                paddingBottom: "0.5rem",
+                minHeight: "60px",
+              }}
+            >
+              {benchPlayers.length === 0 ? (
+                <p
+                  style={{
+                    color: C.gray500,
+                    fontSize: "0.75rem",
+                    fontStyle: "italic",
+                    margin: "0.5rem 0",
+                    width: "100%",
+                    textAlign: "center",
+                    pointerEvents: "none",
+                  }}
+                >
+                  (Toca o arrastra jugadores aquí para mandarlos a la banca)
+                </p>
+              ) : (
+                benchPlayers.map((attId: string) => {
+                  const isSelected = selectedPlayerId === attId;
+                  return (
+                    <div
+                      key={attId}
+                      draggable={perms.canEditAgenda}
+                      onDragStart={(e) => handleDragStart(e, attId)}
+                      onClick={(e) => handleBenchPlayerClick(e, attId)}
+                      style={{
+                        transform: isSelected
+                          ? "scale(1.1) translateY(-4px)"
+                          : "scale(1)",
+                        transition: "all 0.2s ease",
+                        cursor: "grab",
+                        display: "inline-block", // 👈 CRUCIAL: Esto aísla el elemento para que el "fantasma" del Drag & Drop no arrastre a los demás
+                      }}
+                    >
+                      <PlayerToken
+                        playerId={attId}
+                        players={players}
+                        isSelected={isSelected}
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
         )}
+
+        {/* PIE DEL MODAL: BOTONES DE GUARDAR */}
+        <div
+          style={{
+            padding: "1rem",
+            backgroundColor: C.navy900,
+            display: "flex",
+            gap: "0.5rem",
+            borderTop: `1px solid ${C.navy800}`,
+          }}
+        >
+          {perms.canEditAgenda && (
+            <>
+              <SecondaryButton
+                onClick={handleLoadBase}
+                style={{ flex: 1, fontSize: "0.75rem", padding: "0.75rem" }}
+              >
+                Cargar Base
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={() => onSave(ev.id, { mode, formation, positions })}
+                style={{ flex: 2, fontSize: "0.85rem", padding: "0.75rem" }}
+              >
+                Guardar Táctica
+              </PrimaryButton>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 
   return createPortal(modalContent, document.body);
+};
+
+// ── COMPONENTE AUXILIAR PARA LA FICHA DEL JUGADOR (TOKEN) ──
+const PlayerToken = ({
+  playerId,
+  players,
+  isSelected = false,
+}: {
+  playerId: string;
+  players: any[];
+  isSelected?: boolean;
+}) => {
+  const playerInfo = players.find((pl: any) => pl.id === playerId);
+  const isGuest = playerId.startsWith("guest-");
+  const displayName = playerInfo
+    ? playerInfo.name
+    : playerId.replace("guest-", "");
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        width: "48px",
+      }}
+    >
+      <div
+        style={{
+          position: "relative",
+          width: "40px",
+          height: "40px",
+          borderRadius: "50%",
+          border: isSelected
+            ? `3px solid ${C.amber}`
+            : isGuest
+              ? `2px dashed ${C.gray400}`
+              : `2px solid ${C.white}`,
+          boxShadow: isSelected ? `0 0 15px ${C.amber}80` : SHADOWS.md,
+          overflow: "visible",
+        }}
+      >
+        <img
+          src={
+            playerInfo?.imageUrl ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=${isGuest ? "475569" : "102a43"}&color=fff&size=50`
+          }
+          alt={displayName}
+          draggable="false"
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            objectFit: "cover",
+            backgroundColor: C.navy900,
+          }}
+        />
+
+        {!isGuest && playerInfo?.position && (
+          <div
+            style={{
+              position: "absolute",
+              bottom: "-6px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              backgroundColor: C.navy900,
+              color: C.white,
+              fontSize: "0.5rem",
+              fontWeight: "900",
+              padding: "1px 4px",
+              borderRadius: RADIUS.sm,
+              border: `1px solid ${C.navy700}`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {playerInfo.position.substring(0, 3).toUpperCase()}
+          </div>
+        )}
+      </div>
+
+      <div style={{ textAlign: "center", marginTop: "8px", width: "100%" }}>
+        <span
+          style={{
+            backgroundColor: "rgba(0,0,0,0.8)",
+            color: C.white,
+            fontSize: "0.6rem",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            fontWeight: "700",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            display: "inline-block",
+            maxWidth: "100%",
+          }}
+        >
+          {displayName.split(" ")[0]}
+        </span>
+      </div>
+    </div>
+  );
 };
 
 // ── Comparador de Jugadores Modal (ESTILO PREMIUM) ──
