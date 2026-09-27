@@ -9,13 +9,6 @@ export const getPlayerName = (idOrName: string, players: any[]) => {
   return idOrName;
 };
 
-export const getPlayerInfo = (idOrName: string, players: any[]) => {
-  if (!idOrName || idOrName.startsWith('guest-')) return null;
-  const p = players.find(pl => pl.id === idOrName);
-  if (p) return p;
-  return players.find(pl => pl.name === idOrName) || null;
-};
-
 export const formatFriendlyDate = (dateString: string) => {
   if (!dateString) return '';
   const [year, month, day] = dateString.split('-').map(Number);

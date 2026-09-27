@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import {
   Images,
@@ -10,15 +10,7 @@ import {
   UploadCloud,
   Link as LinkIcon,
 } from "lucide-react";
-import {
-  C,
-  RADIUS,
-  SHADOWS,
-  Badge,
-  FormInput,
-  PrimaryButton,
-  SecondaryButton,
-} from "../../components/ui";
+import { C, RADIUS, SHADOWS, PrimaryButton } from "../../components/ui";
 
 // 👇 IMPORTACIONES DE STORAGE Y COMPRESIÓN 👇
 import {

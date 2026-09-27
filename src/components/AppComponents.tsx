@@ -2,12 +2,9 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   X,
-  Star,
   AlertTriangle,
   Plus,
   LayoutTemplate,
-  Download,
-  Save,
   ArrowRightLeft,
   Trophy,
   Target,
@@ -29,9 +26,9 @@ import {
   ChevronDown,
   UserPlus,
   Check,
-  Goal, // 👈 AÑADIDO
-  Shield, // 👈 AÑADIDO
-  Activity, // 👈 AÑADIDO
+  Goal,
+  Shield,
+  Activity,
 } from "lucide-react";
 import {
   C,
@@ -45,12 +42,9 @@ import {
 } from "./ui";
 import {
   getPlayerName,
-  getPlayerInfo,
   formatFriendlyDate,
   formatFriendlyTime,
 } from "../utils/helpers";
-
-// 👇 Importamos nuestro nuevo componente visualizador de Rutinas
 import RoutineDisplay from "./agenda/RoutineDisplay";
 
 export const AttendanceModal = ({

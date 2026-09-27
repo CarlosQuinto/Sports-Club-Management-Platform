@@ -36,7 +36,13 @@ import AlbumModal from "../components/agenda/AlbumModal";
 import ArbitrationModal from "../components/agenda/ArbitrationModal";
 import StatsModal from "../components/agenda/StatsModal";
 
-export default function Agenda({ events, players, clubInfo, perms }: any) {
+export default function Agenda({
+  events,
+  players,
+  clubInfo,
+  perms,
+  highlightedEventId = null,
+}: any) {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [eventType, setEventType] = useState<"Partido" | "Entrenamiento">(
     "Partido",
@@ -52,9 +58,6 @@ export default function Agenda({ events, players, clubInfo, perms }: any) {
   const [eventLocation, setEventLocation] = useState("");
 
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(
-    null,
-  );
-  const [highlightedEventId, setHighlightedEventId] = useState<string | null>(
     null,
   );
 

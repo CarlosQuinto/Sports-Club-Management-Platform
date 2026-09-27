@@ -1,4 +1,3 @@
-import React from "react";
 import { Droplet, Plus, Trash2, X, ListChecks } from "lucide-react";
 import { C, RADIUS, FormInput, SecondaryButton } from "../../components/ui";
 

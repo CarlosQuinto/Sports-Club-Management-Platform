@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { C, RADIUS, SHADOWS } from "../ui";
 import { isBirthdayToday } from "../../utils/helpers";
 

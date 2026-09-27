@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useFinancesData } from "../components/finances/hooks/useFinancesData";
 import { SummaryCards } from "../components/finances/SummaryCards";
 import { GoalsList } from "../components/finances/GoalsList";

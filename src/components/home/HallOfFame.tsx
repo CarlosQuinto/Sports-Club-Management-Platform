@@ -1,11 +1,10 @@
-import React, { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   Medal,
   Goal,
   TrendingUp,
   Award,
   Shield,
-  Star,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";

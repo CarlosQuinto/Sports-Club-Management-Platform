@@ -1,4 +1,3 @@
-import React from "react";
 import { Edit, Trash2, LayoutTemplate } from "lucide-react";
 import { C, RADIUS, Badge } from "../../components/ui";
 import { isBirthdayToday } from "../../utils/helpers";

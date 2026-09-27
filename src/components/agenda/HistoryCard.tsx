@@ -1,4 +1,3 @@
-import React from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -14,7 +13,7 @@ import {
   LayoutTemplate,
   Trash2,
 } from "lucide-react";
-import { C, RADIUS, SHADOWS, CollapsibleRoutine } from "../../components/ui";
+import { C, RADIUS, SHADOWS } from "../../components/ui";
 import {
   formatFriendlyDate,
   formatFriendlyTime,

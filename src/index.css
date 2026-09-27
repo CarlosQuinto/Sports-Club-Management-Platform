@@ -112,9 +112,6 @@ body {
     transform: translateY(0);
   }
 }
-.tab-enter {
-  animation: fadeIn 0.3s ease;
-}
 
 input,
 select,
