@@ -1,30 +1,32 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import {
+  DEFAULT_CLUB_NAME,
+  DEFAULT_CLUB_SHORT_NAME,
+} from "./src/lib/clubDefaults";
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+      includeAssets: ["icon.svg"],
       manifest: {
-        name: "Joga Bonito FC",
-        short_name: "Joga Bonito",
-        description: "App oficial para la gestión del club Joga Bonito FC.",
+        // Personaliza estos valores en src/lib/clubDefaults.ts
+        name: DEFAULT_CLUB_NAME,
+        short_name: DEFAULT_CLUB_SHORT_NAME,
+        description: `App para la gestión integral del club ${DEFAULT_CLUB_NAME}.`,
+        lang: "es",
         theme_color: "#102a43",
         background_color: "#f8fafc",
         display: "standalone",
         icons: [
           {
-            src: "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg",
-            sizes: "192x192",
-            type: "image/jpeg",
-          },
-          {
-            src: "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg",
-            sizes: "512x512",
-            type: "image/jpeg",
+            src: "/icon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any",
           },
         ],
       },

@@ -1,7 +1,16 @@
 import { useState, useEffect } from "react";
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, signInAnonymously } from "firebase/auth";
-import { getFirestore, collection, onSnapshot, doc } from "firebase/firestore";
+import { signInAnonymously } from "firebase/auth";
+import { collection, onSnapshot, doc } from "firebase/firestore";
+import { auth, db } from "../lib/firebase";
+import {
+  DEFAULT_CLUB_NAME,
+  DEFAULT_CLUB_DESCRIPTION,
+  DEFAULT_HERO_IMAGE,
+} from "../lib/clubDefaults";
+
+// Re-exportados para mantener compatibilidad con los módulos que importan
+// `db`/`auth` desde este hook.
+export { auth, db };
 
 // 1. Define Basic Interfaces for Type Safety
 interface ClubInfo {
@@ -18,28 +27,11 @@ interface FirestoreDoc {
   [key: string]: any;
 }
 
-const firebaseConfig = {
-  apiKey: "AIzaSyCKG9PJIjx9G-4mxwsQu2gwGyV4oGedItM",
-  authDomain: "finanzas-club-jb.firebaseapp.com",
-  projectId: "finanzas-club-jb",
-  storageBucket: "finanzas-club-jb.firebasestorage.app",
-  messagingSenderId: "900869725908",
-  appId: "1:900869725908:web:50411a5b41f05d2679e541",
-};
-
-// 2. Safely Initialize Firebase App
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-
 export function useClubData() {
   const [clubInfo, setClubInfo] = useState<ClubInfo>({
-    name: "Joga Bonito FC",
-    description:
-      "Club Guaymense conformado por auténticos amantes del fútbol. Más que un equipo, una familia en la cancha.",
-    heroImages: [
-      "https://images.unsplash.com/photo-1511886929837-354d827aae26?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-    ],
+    name: DEFAULT_CLUB_NAME,
+    description: DEFAULT_CLUB_DESCRIPTION,
+    heroImages: [DEFAULT_HERO_IMAGE],
     defaultLineups: {},
   });
 

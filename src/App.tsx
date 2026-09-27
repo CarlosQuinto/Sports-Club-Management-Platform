@@ -15,6 +15,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useClubData, db } from "./hooks/useClubData";
+import { DEFAULT_CLUB_NAME, DEFAULT_CLUB_LOGO } from "./lib/clubDefaults";
 import {
   C,
   RADIUS,
@@ -102,11 +103,8 @@ export default function App() {
   const [newlyUploadedLogos, setNewlyUploadedLogos] = useState<string[]>([]);
 
   const handleOpenEditClub = () => {
-    setEditClubName(clubInfo?.name || "Joga Bonito FC");
-    setEditClubLogo(
-      clubInfo?.logoUrl ||
-        "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg",
-    );
+    setEditClubName(clubInfo?.name || DEFAULT_CLUB_NAME);
+    setEditClubLogo(clubInfo?.logoUrl || DEFAULT_CLUB_LOGO);
     setNewlyUploadedLogos([]);
     setShowEditClub(true);
   };
@@ -422,10 +420,7 @@ export default function App() {
                 }}
               >
                 <img
-                  src={
-                    clubInfo?.logoUrl ||
-                    "https://i.pinimg.com/736x/e5/a4/07/e5a407aea70fd07ffcdd7cc87c4daace.jpg"
-                  }
+                  src={clubInfo?.logoUrl || DEFAULT_CLUB_LOGO}
                   alt="Escudo del Club"
                   style={{
                     width: "100%",
@@ -497,7 +492,7 @@ export default function App() {
                   transition: "font-size 0.2s ease", // Suaviza el cambio al girar el celular
                 }}
               >
-                {clubInfo?.name || "Joga Bonito FC"}
+                {clubInfo?.name || DEFAULT_CLUB_NAME}
               </h1>
             </div>
           </div>
@@ -877,7 +872,7 @@ export default function App() {
                   required
                   value={editClubName}
                   onChange={(e) => setEditClubName(e.target.value)}
-                  placeholder="Ej. Joga Bonito FC"
+                  placeholder={`Ej. ${DEFAULT_CLUB_NAME}`}
                   style={{
                     width: "100%",
                     fontSize: "1rem",

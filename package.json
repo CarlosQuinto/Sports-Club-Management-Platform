@@ -1,5 +1,5 @@
 {
-  "name": "finanzas-del-club",
+  "name": "sports-club-management-platform",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.45.4",
     "browser-image-compression": "^2.0.2",
     "firebase": "^12.17.1",
     "lucide-react": "^0.453.0",

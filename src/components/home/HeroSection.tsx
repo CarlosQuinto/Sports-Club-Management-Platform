@@ -21,6 +21,11 @@ import {
 import imageCompression from "browser-image-compression";
 import { db } from "../../hooks/useClubData";
 import {
+  DEFAULT_CLUB_NAME,
+  DEFAULT_CLUB_LOCATION,
+  DEFAULT_HERO_IMAGE,
+} from "../../lib/clubDefaults";
+import {
   C,
   RADIUS,
   SHADOWS,
@@ -48,7 +53,7 @@ export default function HeroSection({
   const [editClubDesc, setEditClubDesc] = useState(clubInfo.description || "");
 
   const [editLocation, setEditLocation] = useState(
-    clubInfo.location || "Guaymas, Sonora",
+    clubInfo.location || DEFAULT_CLUB_LOCATION,
   );
 
   const [editHeroImages, setEditHeroImages] = useState<string[]>(
@@ -219,11 +224,7 @@ export default function HeroSection({
         description: editClubDesc.trim(),
         location: editLocation.trim(),
         heroImages:
-          validImages.length > 0
-            ? validImages
-            : [
-                "https://images.unsplash.com/photo-1511886929837-354d827aae26?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80",
-              ],
+          validImages.length > 0 ? validImages : [DEFAULT_HERO_IMAGE],
       },
       { merge: true },
     );
@@ -250,7 +251,7 @@ export default function HeroSection({
           onClick={() => {
             setEditClubName(clubInfo.name || "");
             setEditClubDesc(clubInfo.description || "");
-            setEditLocation(clubInfo.location || "Guaymas, Sonora");
+            setEditLocation(clubInfo.location || DEFAULT_CLUB_LOCATION);
             setEditHeroImages(
               clubInfo.heroImages?.length > 0 ? clubInfo.heroImages : [""],
             );
@@ -354,7 +355,7 @@ export default function HeroSection({
                   required
                   value={editClubName}
                   onChange={(e) => setEditClubName(e.target.value)}
-                  placeholder="Joga Bonito FC"
+                  placeholder={`Ej. ${DEFAULT_CLUB_NAME}`}
                   style={{ width: "100%" }}
                 />
               </div>
@@ -378,7 +379,7 @@ export default function HeroSection({
                   required
                   value={editLocation}
                   onChange={(e) => setEditLocation(e.target.value)}
-                  placeholder="Ej. Guaymas, Sonora"
+                  placeholder={`Ej. ${DEFAULT_CLUB_LOCATION}`}
                   style={{ width: "100%" }}
                 />
               </div>
@@ -853,7 +854,7 @@ export default function HeroSection({
                 }}
               >
                 <MapPin size={12} color={C.amber} />{" "}
-                {clubInfo.location || "Guaymas, Sonora"}
+                {clubInfo.location || DEFAULT_CLUB_LOCATION}
               </span>
 
               {activePlayersCount > 0 && (
