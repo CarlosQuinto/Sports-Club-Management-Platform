@@ -149,6 +149,8 @@ En `.github/workflows/` hay dos flujos: uno despliega al canal `live` en cada pu
 - Secrets `VITE_FIREBASE_*`: los mismos valores de tu `.env`, necesarios durante el `npm run build`.
 - Variable `FIREBASE_PROJECT_ID`: ID del proyecto de Firebase.
 
+Mientras `FIREBASE_SERVICE_ACCOUNT` no exista, los workflows compilan el proyecto pero omiten el despliegue (verás un aviso en el resumen del job).
+
 ## Seguridad
 
 Antes de poner la aplicación en producción:
